@@ -21,8 +21,14 @@
 #include "billsdepositsdialog.h"
 #include "constants.h"
 #include "images_list.h"
-
-#include "model/allmodel.h"
+#include "filtertransdialog.h"
+#include "option.h"
+#include "util.h"
+#include "Model_Setting.h"
+#include "Model_Usage.h"
+#include "Model_Attachment.h"
+#include "Model_Category.h"
+#include "Model_Account.h"
 
 enum
 {
@@ -113,7 +119,7 @@ billsDepositsListCtrl::billsDepositsListCtrl(mmBillsDepositsPanel* bdp, wxWindow
     
     for (const auto& entry : m_columns)
     {
-        long count = GetColumnCount();
+        int count = GetColumnCount();
         InsertColumn(count
             , entry.HEADER
             , entry.FORMAT
@@ -156,10 +162,10 @@ mmBillsDepositsPanel::mmBillsDepositsPanel(wxWindow *parent, wxWindowID winid
     , const wxPoint& pos, const wxSize& size, long style, const wxString& name)
     : m_imageList(nullptr)
     , listCtrlAccount_(nullptr)
+    , m_infoText(nullptr)
+    , m_infoTextMini(nullptr)
     , transFilterDlg_(nullptr)
     , bitmapTransFilter_(nullptr)
-    , m_infoTextMini(nullptr)
-    , m_infoText(nullptr)
 {
     this->tips_.Add(_("MMEX allows regular payments to be set up as transactions. These transactions can also be regular deposits, or transfers that will occur at some future time. These transactions act as a reminder that an event is about to occur, and appears on the Home Page 14 days before the transaction is due. "));
     this->tips_.Add(_("Tip: These transactions can be set up to activate - allowing the user to adjust any values on the due date."));
@@ -175,6 +181,7 @@ bool mmBillsDepositsPanel::Create(wxWindow *parent
     wxPanel::Create(parent, winid, pos, size, style, name);
 
     this->windowsFreezeThaw();
+    wxDateTime start = wxDateTime::UNow();
 
     CreateControls();
     GetSizer()->Fit(this);
@@ -183,12 +190,12 @@ bool mmBillsDepositsPanel::Create(wxWindow *parent
     /* Set up the transaction filter.  The transFilter dialog will be destroyed
        when the checking panel is destroyed. */
     transFilterActive_ = false;
-    transFilterDlg_ = new mmFilterTransactionsDialog(this);
+    transFilterDlg_ = new mmFilterTransactionsDialog(this, -1);
 
     initVirtualListControl();
 
     this->windowsFreezeThaw();
-    Model_Usage::instance().pageview(this);
+    Model_Usage::instance().pageview(this, (wxDateTime::UNow() - start).GetMilliseconds().ToLong());
 
     return TRUE;
 }
@@ -322,10 +329,9 @@ int mmBillsDepositsPanel::initVirtualListControl(int id)
     for (const Model_Billsdeposits::Data& data
         : Model_Billsdeposits::instance().all(Model_Billsdeposits::COL_NEXTOCCURRENCEDATE))
     {
-        if (transFilterActive_ && !transFilterDlg_->checkAll(data, split))
-            continue;
-
         Model_Billsdeposits::Full_Data r(data);
+        if (transFilterActive_ && !transFilterDlg_->checkAll(r))
+            continue;
 
         if (Model_Attachment::NrAttachments(Model_Attachment::reftype_desc(Model_Attachment::BILLSDEPOSIT), r.BDID))
             r.NOTES = r.NOTES.Prepend(mmAttachmentManage::GetAttachmentNoteSign());
@@ -607,14 +613,14 @@ void billsDepositsListCtrl::OnListKeyDown(wxListEvent& event)
     }
 }
 
-void billsDepositsListCtrl::OnNewBDSeries(wxCommandEvent& /*event*/)
+void billsDepositsListCtrl::OnNewBDSeries(wxCommandEvent& WXUNUSED(event))
 {
     mmBDDialog dlg(this, 0, false, false);
     if ( dlg.ShowModal() == wxID_OK )
         refreshVisualList(m_bdp->initVirtualListControl(dlg.GetTransID()));
 }
 
-void billsDepositsListCtrl::OnEditBDSeries(wxCommandEvent& /*event*/)
+void billsDepositsListCtrl::OnEditBDSeries(wxCommandEvent& WXUNUSED(event))
 {
     if (m_selected_row == -1) return;
 
@@ -623,7 +629,7 @@ void billsDepositsListCtrl::OnEditBDSeries(wxCommandEvent& /*event*/)
         refreshVisualList(m_bdp->initVirtualListControl(dlg.GetTransID()));
 }
 
-void billsDepositsListCtrl::OnDeleteBDSeries(wxCommandEvent& /*event*/)
+void billsDepositsListCtrl::OnDeleteBDSeries(wxCommandEvent& WXUNUSED(event))
 {
     if (m_selected_row < 0) return;
     if (m_bdp->bills_.size() == 0) return;
@@ -641,7 +647,7 @@ void billsDepositsListCtrl::OnDeleteBDSeries(wxCommandEvent& /*event*/)
     }
 }
 
-void billsDepositsListCtrl::OnEnterBDTransaction(wxCommandEvent& /*event*/)
+void billsDepositsListCtrl::OnEnterBDTransaction(wxCommandEvent& WXUNUSED(event))
 {
     if (m_selected_row == -1) return;
 
@@ -651,7 +657,7 @@ void billsDepositsListCtrl::OnEnterBDTransaction(wxCommandEvent& /*event*/)
         refreshVisualList(m_bdp->initVirtualListControl(id));
 }
 
-void billsDepositsListCtrl::OnSkipBDTransaction(wxCommandEvent& /*event*/)
+void billsDepositsListCtrl::OnSkipBDTransaction(wxCommandEvent& WXUNUSED(event))
 {
     if (m_selected_row == -1) return;
 
@@ -660,7 +666,7 @@ void billsDepositsListCtrl::OnSkipBDTransaction(wxCommandEvent& /*event*/)
     refreshVisualList(m_bdp->initVirtualListControl(id));
 }
 
-void billsDepositsListCtrl::OnOrganizeAttachments(wxCommandEvent& /*event*/)
+void billsDepositsListCtrl::OnOrganizeAttachments(wxCommandEvent& WXUNUSED(event))
 {
     if (m_selected_row == -1) return;
 
@@ -673,7 +679,7 @@ void billsDepositsListCtrl::OnOrganizeAttachments(wxCommandEvent& /*event*/)
     refreshVisualList(m_bdp->initVirtualListControl(RefId));
 }
 
-void billsDepositsListCtrl::OnOpenAttachment(wxCommandEvent& event)
+void billsDepositsListCtrl::OnOpenAttachment(wxCommandEvent& WXUNUSED(event))
 {
     if (m_selected_row == -1) return;
     int RefId = m_bdp->bills_[m_selected_row].BDID;
@@ -683,7 +689,7 @@ void billsDepositsListCtrl::OnOpenAttachment(wxCommandEvent& event)
     refreshVisualList(m_bdp->initVirtualListControl(RefId));
 }
 
-void billsDepositsListCtrl::OnListItemActivated(wxListEvent& /*event*/)
+void billsDepositsListCtrl::OnListItemActivated(wxListEvent& WXUNUSED(event))
 {
     if (m_selected_row == -1) return;
 
@@ -856,7 +862,7 @@ void mmBillsDepositsPanel::OnFilterTransactions(wxMouseEvent& event)
     if (e == wxEVT_LEFT_DOWN)
     {
 
-        if (transFilterDlg_->ShowModal() == wxID_OK && transFilterDlg_->somethingSelected())
+        if (transFilterDlg_->ShowModal() == wxID_OK && transFilterDlg_->SomethingSelected())
         {
             transFilterActive_ = true;
             bitmapFilterIcon = mmBitmap(png::RIGHTARROW_ACTIVE);

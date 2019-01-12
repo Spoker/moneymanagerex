@@ -17,7 +17,9 @@
  ********************************************************/
 
 #include "forecast.h"
-#include "model/Model_Checking.h"
+#include "option.h"
+#include "reports/mmDateRange.h"
+#include "Model_Checking.h"
 
 class mm_html_template;
 
@@ -30,9 +32,9 @@ mmReportForecast::~mmReportForecast()
 }
 
 
-bool mmReportForecast::has_date_range()
+int mmReportForecast::report_parameters()
 {
-    return true;
+    return RepParams::DATE_RANGE;
 }
 
 wxString mmReportForecast::getHTMLText()
@@ -41,8 +43,8 @@ wxString mmReportForecast::getHTMLText()
     Model_Checking::Data_Set all_trans;
     
     if (m_date_range && m_date_range->is_with_date())
-        all_trans = Model_Checking::instance().find(DB_Table_CHECKINGACCOUNT_V1::TRANSDATE(m_date_range->start_date().FormatISODate(), GREATER_OR_EQUAL)
-                    , DB_Table_CHECKINGACCOUNT_V1::TRANSDATE(m_date_range->end_date().FormatISODate(), LESS_OR_EQUAL));
+        all_trans = Model_Checking::instance().find(DB_Table_CHECKINGACCOUNT::TRANSDATE(m_date_range->start_date().FormatISODate(), GREATER_OR_EQUAL)
+                    , DB_Table_CHECKINGACCOUNT::TRANSDATE(m_date_range->end_date().FormatISODate(), LESS_OR_EQUAL));
     else
         all_trans = Model_Checking::instance().all();
 
@@ -60,8 +62,8 @@ wxString mmReportForecast::getHTMLText()
     {
         row_t r;
         r(L"DATE") = kv.first;
-        r(L"WITHDRAWAL") = wxString::Format("%f", kv.second.first);
-        r(L"DEPOSIT") = wxString::Format("%f", kv.second.second);
+        r(L"WITHDRAWAL") = wxString::FromCDouble(kv.second.first, 6);
+        r(L"DEPOSIT") = wxString::FromCDouble(kv.second.second, 6);
 
         contents += r;
     }
@@ -86,16 +88,14 @@ wxString mmReportForecast::getHTMLText()
         return _("Caught exception");
     }
 
-    Model_Report::outputReportFile(out);
-    return "";
+    return out;
 }
 
 const char * mmReportForecast::m_template = R"(
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8" />
-    <meta http - equiv = "Content-Type" content = "text/html" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <title><TMPL_VAR REPORTNAME></title>
     <script src = "ChartNew.js"></script>
     <script src = "sorttable.js"></script>

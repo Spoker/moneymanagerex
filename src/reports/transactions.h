@@ -20,10 +20,8 @@
 #define MM_EX_REPORTTRANSACT_H_
 
 #include "reportbase.h"
-#include "filtertransdialog.h"
-#include "model/Model_Checking.h"
-
-class mmBankTransaction;
+#include "Model_Checking.h"
+class mmFilterTransactionsDialog;
 
 class mmReportTransactions : public mmPrintableBase
 {
@@ -36,9 +34,8 @@ public:
 private:
     void Run(mmFilterTransactionsDialog* transDialog);
     Model_Checking::Full_Data_Set trans_;
-    bool ignoreDate_;
-    int refAccountID_;
-    mmFilterTransactionsDialog* transDialog_;
+    int m_refAccountID;
+    mmFilterTransactionsDialog* m_transDialog;
 };
 
 #endif // MM_EX_REPORTTRANSACT_H_

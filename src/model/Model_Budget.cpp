@@ -18,11 +18,10 @@
 
 #include "Model_Budget.h"
 #include <wx/intl.h>
-#include "model/Model_Category.h"
-#include "db/DB_Table_Budgettable_V1.h"
+#include "Model_Category.h"
 
 Model_Budget::Model_Budget()
-: Model<DB_Table_BUDGETTABLE_V1>()
+: Model<DB_Table_BUDGETTABLE>()
 {
 }
 
@@ -65,8 +64,12 @@ const std::vector<std::pair<Model_Budget::PERIOD_ENUM, wxString> > Model_Budget:
 
 wxArrayString Model_Budget::all_period()
 {
-    wxArrayString period;
-    for (const auto& item : PERIOD_ENUM_CHOICES) period.Add(wxGetTranslation(item.second));
+    static wxArrayString period;
+    if (period.empty())
+    {
+        for (const auto& item : PERIOD_ENUM_CHOICES)
+            period.Add(wxGetTranslation(item.second));
+    }
     return period;
 }
 
@@ -84,9 +87,9 @@ Model_Budget::PERIOD_ENUM Model_Budget::period(const Data& r)
     return period(&r);
 }
 
-DB_Table_BUDGETTABLE_V1::PERIOD Model_Budget::PERIOD(PERIOD_ENUM period, OP op)
+DB_Table_BUDGETTABLE::PERIOD Model_Budget::PERIOD(PERIOD_ENUM period, OP op)
 {
-    return DB_Table_BUDGETTABLE_V1::PERIOD(all_period()[period], op);
+    return DB_Table_BUDGETTABLE::PERIOD(all_period()[period], op);
 }
 
 void Model_Budget::getBudgetEntry(int budgetYearID

@@ -21,7 +21,7 @@
 #include "Model_Billsdeposits.h"
 
 Model_Payee::Model_Payee()
-: Model<DB_Table_PAYEE_V1>()
+: Model<DB_Table_PAYEE>()
 {
 }
 
@@ -92,6 +92,19 @@ const wxArrayString Model_Payee::all_payee_names()
     for (const auto &payee: this->all(COL_PAYEENAME))
     {
         payees.Add(payee.PAYEENAME);
+    }
+    return payees;
+}
+
+const wxArrayString Model_Payee::used_payee_names()
+{
+    wxArrayString payees;
+    for (const auto &payee: this->all(COL_PAYEENAME))
+    {
+        if (is_used(payee.PAYEEID))
+        {
+            payees.Add(payee.PAYEENAME);
+        }
     }
     return payees;
 }

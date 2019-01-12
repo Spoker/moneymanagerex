@@ -20,12 +20,12 @@
 #define MODEL_ATTACHMENT_H
 
 #include "Model.h"
-#include "db/DB_Table_Attachment_V1.h"
+#include "Table_Attachment.h"
 
-class Model_Attachment : public Model<DB_Table_ATTACHMENT_V1>
+class Model_Attachment : public Model<DB_Table_ATTACHMENT>
 {
 public:
-    using Model<DB_Table_ATTACHMENT_V1>::get;
+    using Model<DB_Table_ATTACHMENT>::get;
     enum REFTYPE { TRANSACTION = 0, STOCK, ASSET, BANKACCOUNT, BILLSDEPOSIT, PAYEE};
 
     static const std::vector<std::pair<REFTYPE, wxString> > REFTYPE_CHOICES;
@@ -69,7 +69,7 @@ public:
     std::map<int, Data_Set> get_all(REFTYPE reftype);
 
     /** Return all attachments descriptions*/
-    wxArrayString allDescriptions(const bool RemoveDuplicated);
+    wxArrayString allDescriptions();
 };
 
 #endif // 

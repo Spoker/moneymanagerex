@@ -17,6 +17,7 @@
  ********************************************************/
 
 #include "Model_Asset.h"
+#include <cmath>
 
 const std::vector<std::pair<Model_Asset::RATE, wxString> > Model_Asset::RATE_CHOICES = 
 {
@@ -37,7 +38,7 @@ const std::vector<std::pair<Model_Asset::TYPE, wxString> > Model_Asset::TYPE_CHO
 };
 
 Model_Asset::Model_Asset()
-: Model<DB_Table_ASSETS_V1>()
+: Model<DB_Table_ASSETS>()
 {
 }
 
@@ -67,15 +68,23 @@ Model_Asset& Model_Asset::instance()
 
 wxArrayString Model_Asset::all_rate()
 {
-    wxArrayString rates;
-    for (const auto& item: RATE_CHOICES) rates.Add(item.second);
+    static wxArrayString rates;
+    if (rates.empty())
+    {
+        for (const auto& item : RATE_CHOICES)
+            rates.Add(item.second);
+    }
     return rates;
 }
 
 wxArrayString Model_Asset::all_type()
 {
-    wxArrayString types;
-    for (const auto& item: TYPE_CHOICES) types.Add(item.second);
+    static wxArrayString types;
+    if (types.empty())
+    {
+        for (const auto& item : TYPE_CHOICES)
+            types.Add(item.second);
+    }
     return types;
 }
 
@@ -89,14 +98,14 @@ double Model_Asset::balance()
     return balance;
 }
 
-DB_Table_ASSETS_V1::ASSETTYPE Model_Asset::ASSETTYPE(TYPE type, OP op)
+DB_Table_ASSETS::ASSETTYPE Model_Asset::ASSETTYPE(TYPE type, OP op)
 {
-    return DB_Table_ASSETS_V1::ASSETTYPE(all_type()[type], op);
+    return DB_Table_ASSETS::ASSETTYPE(all_type()[type], op);
 }
 
-DB_Table_ASSETS_V1::STARTDATE Model_Asset::STARTDATE(const wxDate& date, OP op)
+DB_Table_ASSETS::STARTDATE Model_Asset::STARTDATE(const wxDate& date, OP op)
 {
-    return DB_Table_ASSETS_V1::STARTDATE(date.FormatISODate(), op);
+    return DB_Table_ASSETS::STARTDATE(date.FormatISODate(), op);
 }
 
 wxDate Model_Asset::STARTDATE(const Data* r)
@@ -113,7 +122,7 @@ Model_Asset::TYPE Model_Asset::type(const Data* r)
 {
     for (const auto& item : TYPE_CHOICES) if (item.second.CmpNoCase(r->ASSETTYPE) == 0) return item.first;
 
-    return TYPE(-1);
+    return TYPE_UNKNOWN;
 }
 
 Model_Asset::TYPE Model_Asset::type(const Data& r)
@@ -124,7 +133,7 @@ Model_Asset::TYPE Model_Asset::type(const Data& r)
 Model_Asset::RATE Model_Asset::rate(const Data* r)
 {
     for (const auto & item : RATE_CHOICES) if (item.second.CmpNoCase(r->VALUECHANGE) == 0) return item.first;
-    return RATE(-1);
+    return RATE_UNKNOWN;
 }
 
 Model_Asset::RATE Model_Asset::rate(const Data& r)

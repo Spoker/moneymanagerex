@@ -22,17 +22,16 @@
 #include "images_list.h"
 #include "maincurrencydialog.h"
 #include "mmSimpleDialogs.h"
+#include "mmTextCtrl.h"
 #include "option.h"
 #include "paths.h"
 #include "util.h"
 #include "validators.h"
 #include "webapp.h"
 
-#include "model/Model_Infotable.h"
-#include "model/Model_Currency.h"
-#include "model/Model_Attachment.h"
-
-#include <wx/valnum.h>
+#include "Model_Infotable.h"
+#include "Model_Currency.h"
+#include "Model_Attachment.h"
 
 enum {
     ID_DIALOG_NEWACCT_BUTTON_CURRENCY = wxID_HIGHEST + 1000,
@@ -66,7 +65,6 @@ mmNewAcctDialog::mmNewAcctDialog()
 
 mmNewAcctDialog::mmNewAcctDialog(Model_Account::Data* account, wxWindow* parent, const wxString &name)
     : m_account(account)
-    , m_currencyID(-1)
     , m_textAccountName(nullptr)
     , m_notesCtrl(nullptr)
     , m_initbalance_ctrl(nullptr)
@@ -79,6 +77,7 @@ mmNewAcctDialog::mmNewAcctDialog(Model_Account::Data* account, wxWindow* parent,
     , m_interest_rate_ctrl(nullptr)
     , m_payment_due_date_ctrl(nullptr)
     , m_minimum_payment_ctrl(nullptr)
+    , m_currencyID(-1)
     , m_accessinfo_infocus(false)
 {
     m_imageList = navtree_images_list();
@@ -150,7 +149,7 @@ void mmNewAcctDialog::fillControls()
 
     Model_Account::currency(m_account);
     wxButton* bn = (wxButton*)FindWindow(ID_DIALOG_NEWACCT_BUTTON_CURRENCY);
-    bn->SetLabelText(Model_Account::currency(m_account)->CURRENCYNAME);
+    bn->SetLabelText(wxGetTranslation(Model_Account::currency(m_account)->CURRENCYNAME));
     m_currencyID = m_account->CURRENCYID;
 
     double initBal = m_account->INITIALBAL;
@@ -228,7 +227,7 @@ void mmNewAcctDialog::CreateControls()
     wxString currName = _("Select Currency");
     Model_Currency::Data* base_currency = Model_Currency::GetBaseCurrency();
     if (base_currency)
-        currName = base_currency->CURRENCYNAME;
+        currName = wxGetTranslation(base_currency->CURRENCYNAME);
 
     wxButton* itemButton71 = new wxButton(this,
         ID_DIALOG_NEWACCT_BUTTON_CURRENCY, currName);
@@ -398,18 +397,18 @@ void mmNewAcctDialog::CreateControls()
     }
 }
 
-void mmNewAcctDialog::OnCancel(wxCommandEvent& /*event*/)
+void mmNewAcctDialog::OnCancel(wxCommandEvent& WXUNUSED(event))
 {
     EndModal(wxID_CANCEL);
 }
 
-void mmNewAcctDialog::OnCurrency(wxCommandEvent& /*event*/)
+void mmNewAcctDialog::OnCurrency(wxCommandEvent& WXUNUSED(event))
 {
     if (mmMainCurrencyDialog::Execute(this, m_currencyID))
     {
         Model_Currency::Data* currency = Model_Currency::instance().get(m_currencyID);
         wxButton* bn = (wxButton*)FindWindow(ID_DIALOG_NEWACCT_BUTTON_CURRENCY);
-        bn->SetLabelText(currency->CURRENCYNAME);
+        bn->SetLabelText(wxGetTranslation(currency->CURRENCYNAME));
 
         double init_balance;
         if (m_initbalance_ctrl->checkValue(init_balance, false))
@@ -424,14 +423,14 @@ void mmNewAcctDialog::OnCurrency(wxCommandEvent& /*event*/)
     }
 }
 
-void mmNewAcctDialog::OnAttachments(wxCommandEvent& /*event*/)
+void mmNewAcctDialog::OnAttachments(wxCommandEvent& WXUNUSED(event))
 {
     wxString RefType = Model_Attachment::reftype_desc(Model_Attachment::BANKACCOUNT);
     mmAttachmentDialog dlg(this, RefType, m_account->ACCOUNTID);
     dlg.ShowModal();
 }
 
-void mmNewAcctDialog::OnOk(wxCommandEvent& /*event*/)
+void mmNewAcctDialog::OnOk(wxCommandEvent& WXUNUSED(event))
 {
     wxString acctName = m_textAccountName->GetValue().Trim();
     if (acctName.IsEmpty() || Model_Account::Exist(acctName))
@@ -494,19 +493,19 @@ void mmNewAcctDialog::OnOk(wxCommandEvent& /*event*/)
     mmWebApp::MMEX_WebApp_UpdateAccount();
 }
 
-void mmNewAcctDialog::OnImageButton(wxCommandEvent& /*event*/)
+void mmNewAcctDialog::OnImageButton(wxCommandEvent& WXUNUSED(event))
 {
     wxCommandEvent ev(wxEVT_COMMAND_MENU_SELECTED, wxID_ANY);
     ev.SetEventObject(this);
 
     wxMenu* mainMenu = new wxMenu;
-    wxMenuItem* menuItem = new wxMenuItem(mainMenu, wxID_HIGHEST + acc_img::MONEY_DOLLAR_XPM - 1, _("Default Image"));
-    menuItem->SetBitmap(m_imageList->GetBitmap(Option::instance().AccountImageId(this->m_account->ACCOUNTID, true)));
-    mainMenu->Append(menuItem);
+    wxMenuItem* root_menuItem = new wxMenuItem(mainMenu, wxID_HIGHEST + acc_img::MONEY_DOLLAR_XPM - 1, _("Default Image"));
+    root_menuItem->SetBitmap(m_imageList->GetBitmap(Option::instance().AccountImageId(this->m_account->ACCOUNTID, true)));
+    mainMenu->Append(root_menuItem);
 
     for (int i = img::LAST_NAVTREE_PNG; i < acc_img::MAX_XPM; ++i)
     {
-        menuItem = new wxMenuItem(mainMenu, wxID_HIGHEST + i
+        wxMenuItem* menuItem = new wxMenuItem(mainMenu, wxID_HIGHEST + i
             , wxString::Format(_("Image #%i"), i - img::LAST_NAVTREE_PNG + 1));
         menuItem->SetBitmap(m_imageList->GetBitmap(i));
         mainMenu->Append(menuItem);

@@ -1,7 +1,7 @@
 /*******************************************************
-Copyright (C) 2006 Madhan Kanagavel
-Copyright (C) 2011, 2012 Stefano Giorgio
-Copyright (C) 2013, 2014 Nikolay
+ Copyright (C) 2006 Madhan Kanagavel
+ Copyright (C) 2011, 2012 Stefano Giorgio
+ Copyright (C) 2013, 2014 Nikolay
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -22,10 +22,10 @@ Copyright (C) 2013, 2014 Nikolay
 #define MM_EX_CHECKINGPANEL_H_
 //----------------------------------------------------------------------------
 #include "mmpanelbase.h"
+#include "constants.h"
 #include "reports/mmDateRange.h"
-#include "model/Model_Checking.h"
-#include "model/Model_Account.h"
-#include <map>
+#include "Model_Checking.h"
+#include "Model_Account.h"
 //----------------------------------------------------------------------------
 class mmCheckingPanel;
 class mmFilterTransactionsDialog;
@@ -59,6 +59,7 @@ public:
         COL_IMGSTATUS = 0,
         COL_ID,
         COL_DATE,
+        COL_DEF_SORT = COL_DATE,
         COL_NUMBER,
         COL_PAYEE_STR,
         COL_STATUS,
@@ -67,8 +68,12 @@ public:
         COL_DEPOSIT,
         COL_BALANCE,
         COL_NOTES,
+        COL_UDFC01,
+        COL_UDFC02,
+        COL_UDFC03,
+        COL_UDFC04,
+        COL_UDFC05,
         COL_MAX, // number of columns
-        COL_DEF_SORT = COL_DATE
     };
     EColumn toEColumn(long col)
     {
@@ -264,19 +269,19 @@ private:
     static wxArrayString menu_labels()
     {
         wxArrayString items;
-        items.Add(wxTRANSLATE("View All Transactions"));
-        items.Add(wxTRANSLATE("View Today"));
-        items.Add(wxTRANSLATE("View Current Month"));
-        items.Add(wxTRANSLATE("View Last 30 days"));
-        items.Add(wxTRANSLATE("View Last 90 days"));
-        items.Add(wxTRANSLATE("View Last Month"));
-        items.Add(wxTRANSLATE("View Last 3 Months"));
-        items.Add(wxTRANSLATE("View Last 12 Months"));
-        items.Add(wxTRANSLATE("View Current Year"));
-        items.Add(wxTRANSLATE("View Current Financial Year"));
-        items.Add(wxTRANSLATE("View Last Year"));
-        items.Add(wxTRANSLATE("View Last Financial Year"));
-        items.Add(wxTRANSLATE("View Since Statement Date"));
+        items.Add(VIEW_TRANS_ALL_STR);
+        items.Add(VIEW_TRANS_TODAY_STR);
+        items.Add(VIEW_TRANS_CURRENT_MONTH_STR);
+        items.Add(VIEW_TRANS_LAST_30_DAYS_STR);
+        items.Add(VIEW_TRANS_LAST_90_DAYS_STR);
+        items.Add(VIEW_TRANS_LAST_MONTH_STR);
+        items.Add(VIEW_TRANS_LAST_3MONTHS_STR);
+        items.Add(VIEW_TRANS_LAST_12MONTHS_STR);
+        items.Add(VIEW_TRANS_CURRENT_YEAR_STR);
+        items.Add(VIEW_TRANS_CURRENT_FIN_YEAR_STR);
+        items.Add(VIEW_TRANS_LAST_YEAR_STR);
+        items.Add(VIEW_TRANS_LAST_FIN_YEAR_STR);
+        items.Add(VIEW_TRANS_SINCE_STATEMENT_STR);
         return items;
     }
     wxDECLARE_EVENT_TABLE();
@@ -363,3 +368,8 @@ private:
 #endif // MM_EX_CHECKINGPANEL_H_
 //----------------------------------------------------------------------------
 
+inline static bool SorterByUDFC01(const Model_Checking::Full_Data& i, const Model_Checking::Full_Data& j) { return (i.UDFC01 < j.UDFC01); }
+inline static bool SorterByUDFC02(const Model_Checking::Full_Data& i, const Model_Checking::Full_Data& j) { return (i.UDFC02 < j.UDFC02); }
+inline static bool SorterByUDFC03(const Model_Checking::Full_Data& i, const Model_Checking::Full_Data& j) { return (i.UDFC03 < j.UDFC03); }
+inline static bool SorterByUDFC04(const Model_Checking::Full_Data& i, const Model_Checking::Full_Data& j) { return (i.UDFC04 < j.UDFC04); }
+inline static bool SorterByUDFC05(const Model_Checking::Full_Data& i, const Model_Checking::Full_Data& j) { return (i.UDFC05 < j.UDFC05); }

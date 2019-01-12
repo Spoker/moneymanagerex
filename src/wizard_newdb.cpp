@@ -18,7 +18,7 @@
 
 #include "wizard_newdb.h"
 #include "maincurrencydialog.h"
-#include "model/Model_Account.h"
+#include "Model_Account.h"
 #include "../resources/addacctwiz.xpm"
 //----------------------------------------------------------------------------
 
@@ -67,12 +67,14 @@ mmNewDatabaseWizard::mmNewDatabaseWizard(wxFrame *frame)
     // allow the wizard to size itself around the pages
     GetPageAreaSizer()->Add(page1);
 
-    /*wxButton* back = (wxButton*) FindWindow(wxID_BACKWARD);
+/*
+    wxButton* back = (wxButton*) FindWindow(wxID_BACKWARD);
     if (back) back->SetLabel(_("<- &Back"));
     wxButton* next = (wxButton*) FindWindow(wxID_FORWARD); //FIXME: 
     if (next) next->SetLabel(_("&Next ->"));
     wxButton* ca = (wxButton*) FindWindow(wxID_CANCEL);
-    if (ca) ca->SetLabel(wxGetTranslation(g_CancelLabel));*/
+    if (ca) ca->SetLabel(wxGetTranslation(g_CancelLabel));
+*/
 }
 
 void mmNewDatabaseWizard::RunIt(bool modal)
@@ -107,7 +109,6 @@ END_EVENT_TABLE()
 
 mmNewDatabaseWizardPage::mmNewDatabaseWizardPage(mmNewDatabaseWizard* parent)
     : wxWizardPageSimple(parent)
-    , parent_(parent)
     , currencyID_(-1)
 {
     wxString currName = _("Set Currency");
@@ -115,7 +116,7 @@ mmNewDatabaseWizardPage::mmNewDatabaseWizardPage(mmNewDatabaseWizard* parent)
     if (base_currency)
     {
         currencyID_ = base_currency->CURRENCYID;
-        currName = base_currency->CURRENCYNAME;
+        currName = wxGetTranslation(base_currency->CURRENCYNAME);
 	    Option::instance().BaseCurrency(currencyID_);
     }
 
@@ -170,18 +171,19 @@ bool mmNewDatabaseWizardPage::TransferDataFromWindow()
     return true;
 }
 
-void mmNewDatabaseWizardPage::OnCurrency(wxCommandEvent& /*event*/)
+void mmNewDatabaseWizardPage::OnCurrency(wxCommandEvent& WXUNUSED(event))
 {
-    currencyID_ = Option::instance().BaseCurrency();
-
-    if (mmMainCurrencyDialog::Execute(this, currencyID_) && currencyID_ != -1)
+    while (true)
     {
+        currencyID_ = Option::instance().BaseCurrency();
+        mmMainCurrencyDialog::Execute(this, currencyID_);
         Model_Currency::Data* currency = Model_Currency::instance().get(currencyID_);
         if (currency)
         {
-            itemButtonCurrency_->SetLabelText(currency->CURRENCYNAME);
+            itemButtonCurrency_->SetLabelText(wxGetTranslation(currency->CURRENCYNAME));
             currencyID_ = currency->CURRENCYID;
             Option::instance().BaseCurrency(currencyID_);
+            break;
         }
     }
 }

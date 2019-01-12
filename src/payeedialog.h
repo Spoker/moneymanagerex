@@ -19,10 +19,11 @@
 #ifndef MM_EX_PAYEEDIALOG_H_
 #define MM_EX_PAYEEDIALOG_H_
 
-#include "defs.h"
-#include <wx/dataview.h>
-#include <wx/srchctrl.h>
+#include <wx/dialog.h>
 #include <map>
+class wxDataViewListCtrl;
+class wxDataViewEvent;
+class wxSearchCtrl;
 
 class mmPayeeDialog : public wxDialog
 {
@@ -75,8 +76,8 @@ private:
     void DefineDefaultCategory();
     void OnOrganizeAttachments();
     void OnPayeeRelocate();
-    void OnCancel(wxCommandEvent& /*event*/);
-    void OnOk(wxCommandEvent& /*event*/);
+    void OnCancel(wxCommandEvent& WXUNUSED(event));
+    void OnOk(wxCommandEvent& WXUNUSED(event));
 
     void OnListItemSelected(wxDataViewEvent& event);
     void OnListItemActivated(wxDataViewEvent& event);

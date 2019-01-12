@@ -20,10 +20,11 @@
 #include "Model_Checking.h"
 #include "Model_Billsdeposits.h"
 #include "Model_Account.h"
+#include "Model_CurrencyHistory.h"
 #include "reports/mmDateRange.h"
 #include <tuple>
 
-Model_Category::Model_Category(): Model<DB_Table_CATEGORY_V1>()
+Model_Category::Model_Category(): Model<DB_Table_CATEGORY>()
 {
 }
 
@@ -157,17 +158,10 @@ bool Model_Category::has_income(int id, int sub_id)
 void Model_Category::getCategoryStats(
         std::map<int, std::map<int, std::map<int, double> > > &categoryStats
         , mmDateRange* date_range, bool ignoreFuture //TODO: deprecated
-        , bool group_by_month, bool with_date
+        , bool group_by_month
         , std::map<int, std::map<int, double> > *budgetAmt)
 {
     //Initialization
-    //Get base currency rates for all accounts
-    std::map<int, double> acc_conv_rates;
-    for (const auto& account: Model_Account::instance().all())
-    {
-        Model_Currency::Data* currency = Model_Account::currency(account);
-        acc_conv_rates[account.ACCOUNTID] = currency ? currency->BASECONVRATE : 0;
-    }
     //Set std::map with zerros
     const auto &allSubcategories = Model_Subcategory::instance().all();
     double value = 0;
@@ -177,7 +171,7 @@ void Model_Category::getCategoryStats(
     {
         for (int m = 0; m < columns; m++)
         {
-            const wxDateTime &d = wxDateTime(start_date).Subtract(wxDateSpan::Months(m));
+            const wxDateTime d = start_date.Subtract(wxDateSpan::Months(m));
             int idx = group_by_month ? (d.GetYear()*100 + (int)d.GetMonth()) : 0;
             categoryStats[category.CATEGID][-1][idx] = value;
             for (const auto & sub_category : allSubcategories)
@@ -188,15 +182,13 @@ void Model_Category::getCategoryStats(
         }
     }
     //Calculations
-    const wxDate today = date_range->today();
     auto splits = Model_Splittransaction::instance().get_all();
     for (const auto& transaction: Model_Checking::instance().find(
         Model_Checking::STATUS(Model_Checking::VOID_, NOT_EQUAL)
         , Model_Checking::TRANSDATE(date_range->start_date(), GREATER_OR_EQUAL)
         , Model_Checking::TRANSDATE(date_range->end_date(), LESS_OR_EQUAL)))
     {
-        // We got this far, get the currency conversion rate for this account
-        double convRate = acc_conv_rates[transaction.ACCOUNTID];
+        const double convRate = Model_CurrencyHistory::getDayRate(Model_Account::instance().get(transaction.ACCOUNTID)->CURRENCYID, transaction.TRANSDATE);
         const wxDateTime &d = Model_Checking::TRANSDATE(transaction);
         int idx = group_by_month ? (d.GetYear()*100 + (int)d.GetMonth()) : 0;
         int categID = transaction.CATEGID;

@@ -1,5 +1,7 @@
 /*******************************************************
  Copyright (C) 2006 Madhan Kanagavel
+ Copyright (C) 2016 - 2017 Stefano Giorgio [stef145g]
+ Copyright (C) 2017 James Higley
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -20,6 +22,9 @@
 #define MM_EX_OPTION_H_
 
 #include "defs.h"
+#include <vector>
+
+class mmPrintableBase;
 
 /*
    mmOptions caches the options for MMEX
@@ -41,8 +46,10 @@ public:
     wxString DateFormat();
 
     // set and save the option: m_language
-    void Language(wxString& language);
-    wxString Language(bool get_db = false);
+    void Language(wxLanguage& language);
+    wxLanguage Language(bool get_db = false);
+    // get 2-letter ISO 639-1 code
+    wxString LanguageISO6391(bool get_db = false);
 
     // set and save the option: m_userNameString
     void UserName(const wxString& username);
@@ -98,18 +105,33 @@ public:
     void SharePrecision(int value);
     int SharePrecision();
 
-    /* stored value in percantage for scale html font and other objects */
+    /* stored value in percentage for scale html font and other objects */
     void HtmlFontSize(int value);
     int HtmlFontSize();
+
+    // Allows a year or financial year to start before or after the 1st of the month.
+    void BudgetDaysOffset(int value);
+    int BudgetDaysOffset();
+    /**Re-adjust date by the date offset value*/
+    void BudgetDateOffset(wxDateTime& date);
 
     void IconSize(int value);
     int IconSize();
 
-    const int AccountImageId(int account_id, bool def = false);
+    int AccountImageId(int account_id, bool def = false);
+
+    void HideReport(int report, bool value);
+    bool HideReport(int report);
+    int ReportCount();
+    wxString ReportFullName(int report);
+    wxString ReportGroup(int report);
+    wxString ReportName(int report);
+    bool BudgetReport(int report);
+    mmPrintableBase* ReportFunction(int report);
 
 private:
     wxString m_dateFormat;
-    wxString m_language;
+    wxLanguage m_language;
     wxString m_userNameString;
     wxString m_financialYearStartDayString;
     wxString m_financialYearStartMonthString;
@@ -131,6 +153,12 @@ private:
 
     int m_html_font_size;
     int m_ico_size;
+    int m_budget_days_offset;
+    int m_hideReport;
+    struct ReportInfo;
+    std::vector<Option::ReportInfo> m_reports;
+
+    const wxString ReportSettings(int id);
 };
 
 #endif // MM_EX_OPTION_H_

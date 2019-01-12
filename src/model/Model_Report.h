@@ -20,16 +20,12 @@
 #define MODEL_REPORT_H
 
 #include "Model.h"
-#include "db/DB_Table_Report_V1.h"
+#include "Table_Report.h"
 
-#include "cajun/json/elements.h"
-#include "cajun/json/reader.h"
-#include "cajun/json/writer.h"
-
-class Model_Report : public Model<DB_Table_REPORT_V1>
+class Model_Report : public Model<DB_Table_REPORT>
 {
 public:
-    using Model<DB_Table_REPORT_V1>::get;
+    using Model<DB_Table_REPORT>::get;
 
 public:
     Model_Report(); 
@@ -51,16 +47,17 @@ public:
     static Model_Report& instance();
 
 public:
-    bool get_objects_from_sql(const wxString& query, json::Object& o);
+    bool get_objects_from_sql(const wxString& query, PrettyWriter<StringBuffer>& json_writer);
     wxArrayString allGroupNames();
     wxString get_html(const Data* r);
     wxString get_html(const Data& r);
     static void prepareTempFolder();
     static bool WindowsUpdateRegistry();
-    static void outputReportFile(const wxString& str);
+    static bool outputReportFile(const wxString& str, const wxString& name);
+    Data* get(const wxString& name);
 
 public:
-    Data* get(const wxString& name);
+    static bool PrepareSQL(wxString& sql, std::map <wxString, wxString>& rep_params);
 };
 
 #endif // 

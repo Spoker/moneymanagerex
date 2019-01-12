@@ -22,7 +22,8 @@
 #include "constants.h"
 #include "mmex.h"
 #include "mmframe.h"
-#include "model/Model_Usage.h"
+#include "Model_Usage.h"
+#include <wx/webview.h>
 
 BEGIN_EVENT_TABLE(mmHelpPanel, wxPanel)
     EVT_BUTTON(wxID_BACKWARD, mmHelpPanel::OnHelpPageBack)
@@ -41,11 +42,12 @@ bool mmHelpPanel::Create( wxWindow *parent, wxWindowID winid,
 {
     SetExtraStyle(GetExtraStyle()|wxWS_EX_BLOCK_EVENTS);
     wxPanel::Create(parent, winid, pos, size, style, name);
+    wxDateTime start = wxDateTime::UNow();
 
     CreateControls();
     GetSizer()->Fit(this);
     GetSizer()->SetSizeHints(this);
-    Model_Usage::instance().pageview(this);
+    Model_Usage::instance().pageview(this, (wxDateTime::UNow() - start).GetMilliseconds().ToLong());
 
     return TRUE;
 }
@@ -65,9 +67,8 @@ void mmHelpPanel::CreateControls()
     wxButton* buttonBack     = new wxButton(itemPanel3, wxID_BACKWARD, _("&Back"));
     wxButton* buttonFordward = new wxButton(itemPanel3, wxID_FORWARD, _("&Forward") );
 
-    wxString helpHeader = wxString::Format(_("%1$s - %2$s"), mmex::getProgramName(), _("Help"));
     wxStaticText* itemStaticText9 = new wxStaticText(itemPanel3, wxID_ANY
-        , helpHeader);
+        , mmex::getCaption(_("Help")));
     itemStaticText9->SetFont(this->GetFont().Larger().Bold());
 
     itemBoxSizerHeader->Add(buttonBack, 0, wxLEFT, 5);
@@ -83,32 +84,23 @@ void mmHelpPanel::CreateControls()
     Main default help file name: ./help/index.html
     Default filename names can be found in mmex::getPathDoc(fileIndex)
     
-    Language files now reside in their own language subdirectory in ./help/
-    example: russian language - changed to: ./help/russian/index.html
-
     Default help files will be used when the language help file are not found.
     **************************************************************************/
+
     int helpFileIndex = m_frame->getHelpFileIndex();
- 
-    wxFileName helpIndexFile(mmex::getPathDoc((mmex::EDocFile)helpFileIndex));
-    if (Option::instance().Language() != "english" && Option::instance().Language() != "")
-    {
-        helpIndexFile.AppendDir(Option::instance().Language());
-    }
-    wxString url = "file://" + mmex::getPathDoc((mmex::EDocFile)helpFileIndex);
-    if (helpIndexFile.FileExists()) // Load the help file for the given language
-    {
-        url = "file://" + helpIndexFile.GetPathWithSep() + helpIndexFile.GetFullName();
-    }
-    browser_->LoadURL(url);
-    wxLogDebug("%s", url);
+    const wxString help_file = wxString::Format("file://%s?lang=%s"
+        , mmex::getPathDoc((mmex::EDocFile)helpFileIndex)
+        , Option::instance().LanguageISO6391());
+
+    //wxLogDebug("%s", help_file);
+    browser_->LoadURL(help_file);
 }
 
 void mmHelpPanel::sortTable()
 {
 }
 
-void mmHelpPanel::OnHelpPageBack(wxCommandEvent& /*event*/)
+void mmHelpPanel::OnHelpPageBack(wxCommandEvent& WXUNUSED(event))
 {
     if (browser_->CanGoBack())
     {
@@ -117,7 +109,7 @@ void mmHelpPanel::OnHelpPageBack(wxCommandEvent& /*event*/)
     }
 }
 
-void mmHelpPanel::OnHelpPageForward(wxCommandEvent& /*event*/)
+void mmHelpPanel::OnHelpPageForward(wxCommandEvent& WXUNUSED(event))
 {
     if (browser_->CanGoForward() )
     {

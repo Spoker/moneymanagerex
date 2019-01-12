@@ -20,13 +20,13 @@
 #define MODEL_PAYEE_H
 
 #include "Model.h"
-#include "db/DB_Table_Payee_V1.h"
+#include "Table_Payee.h"
 
-class Model_Payee : public Model<DB_Table_PAYEE_V1>
+class Model_Payee : public Model<DB_Table_PAYEE>
 {
 public:
-    using Model<DB_Table_PAYEE_V1>::remove;
-    using Model<DB_Table_PAYEE_V1>::get;
+    using Model<DB_Table_PAYEE>::remove;
+    using Model<DB_Table_PAYEE>::get;
 
 public:
     Model_Payee();
@@ -60,6 +60,7 @@ public:
     bool remove(int id);
 
     const wxArrayString all_payee_names();
+    const wxArrayString used_payee_names();
 
     static bool is_used(int id);
     static bool is_used(const Data* record);

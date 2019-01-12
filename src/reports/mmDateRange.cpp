@@ -51,7 +51,7 @@ const wxDateTime mmDateRange::today() const
     return this->today_;
 }
 
-const bool mmDateRange::is_with_date() const
+bool mmDateRange::is_with_date() const
 {
     return true;
 }
@@ -206,12 +206,12 @@ mmLastFinancialYear::mmLastFinancialYear(const int day, const int month)
 mmAllTime::mmAllTime()
 : mmDateRange()
 {
-    this->title_ = wxTRANSLATE("Over Time");
-    this->start_date_.SetDay(1).SetMonth(wxDateTime::Jan).SetYear(1);
+    this->start_date_.SetDay(1).SetMonth(wxDateTime::Jan).SetYear(1601);
     this->end_date_ = wxDateTime(31, wxDateTime::Dec, 9999);
+    this->title_ = wxTRANSLATE("Over Time");
 }
 
-const bool mmAllTime::is_with_date() const
+bool mmAllTime::is_with_date() const
 {
     return false;
 }
@@ -219,7 +219,7 @@ const bool mmAllTime::is_with_date() const
 mmSpecifiedRange::mmSpecifiedRange(const wxDateTime& start, const wxDateTime& end)
 : mmDateRange()
 {
-    this->title_ = "";
+    this->title_ = wxTRANSLATE("Custom");
     this->start_date_ = start;
     this->end_date_ = end;
 }

@@ -1,5 +1,6 @@
 /*************************************************************************
  Copyright (C) 2012 Stefano Giorgio
+ Copyright (C) 2017 James Higley
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -23,18 +24,18 @@
 #define MM_EX_REPORTBUDGET_CATEGORYSUMMARY_H_
 
 #include "budget.h"
+#include "util.h"
 
 class mmReportBudgetCategorySummary : public mmReportBudget
 {
 public:
-    explicit mmReportBudgetCategorySummary(int budgetYearID);
+    mmReportBudgetCategorySummary();
     virtual ~mmReportBudgetCategorySummary();
 
     virtual wxString getHTMLText();
+    virtual int report_parameters();
 
 private:
-    int budgetYearID_;
-
     wxString actualAmountColour(double amount, double actual, double estimated, bool total = false);
 };
 

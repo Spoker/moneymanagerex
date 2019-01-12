@@ -1,5 +1,6 @@
 /*******************************************************
- Copyright (C) 2013,2014 Guan Lisheng (guanlisheng@gmail.com)
+ Copyright (C) 2013-2016 Guan Lisheng (guanlisheng@gmail.com)
+ Copyright (C) 2013-2017 Stefano Giorgio [stef145g]
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -16,17 +17,16 @@
  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  ********************************************************/
 
-#ifndef MODEL_CHECKING_H
-#define MODEL_CHECKING_H
+#pragma once
 
 #include "Model.h"
-#include "db/DB_Table_Checkingaccount_V1.h"
+#include "Table_Checkingaccount.h"
 #include "Model_Splittransaction.h"
 
-class Model_Checking : public Model<DB_Table_CHECKINGACCOUNT_V1>
+class Model_Checking : public Model<DB_Table_CHECKINGACCOUNT>
 {
 public:
-    using Model<DB_Table_CHECKINGACCOUNT_V1>::remove;
+    using Model<DB_Table_CHECKINGACCOUNT>::remove;
     typedef Model_Splittransaction::Data_Set Split_Data_Set;
 
 public:
@@ -40,15 +40,24 @@ public:
     struct Full_Data: public Data
     {
         Full_Data();
-        explicit Full_Data(const Data& r);
-        Full_Data(const Data& r
+        explicit Full_Data(int account_id, const Data& r);
+        Full_Data(int account_id, const Data& r
             , const std::map<int /*trans id*/
                 , Model_Splittransaction::Data_Set /*split trans*/ > & splits);
-
         ~Full_Data();
         wxString ACCOUNTNAME, TOACCOUNTNAME;
         wxString PAYEENAME;
         wxString CATEGNAME;
+        
+        // Reserved string variables for custom data
+        wxString UDFC01;
+        wxString UDFC02;
+        wxString UDFC03;
+        wxString UDFC04;
+        wxString UDFC05;
+
+        //Modified Status for a Transfer transaction.
+        wxString STATUSFD;
         double AMOUNT;
         double BALANCE;
         Model_Splittransaction::Data_Set m_splits;
@@ -59,6 +68,9 @@ public:
 
         wxString info() const;
         const wxString to_json();
+
+    private:
+        void Initialise(int account_id, const Data& r);
     };
     typedef std::vector<Full_Data> Full_Data_Set;
 
@@ -127,10 +139,10 @@ public:
     static const Model_Splittransaction::Data_Set splittransaction(const Data& r);
 
 public:
-    static DB_Table_CHECKINGACCOUNT_V1::TRANSDATE TRANSDATE(const wxDate& date, OP op = EQUAL);
-    static DB_Table_CHECKINGACCOUNT_V1::TRANSDATE TRANSDATE(const wxString& date, OP op = EQUAL);
-    static DB_Table_CHECKINGACCOUNT_V1::STATUS STATUS(STATUS_ENUM status, OP op = EQUAL);
-    static DB_Table_CHECKINGACCOUNT_V1::TRANSCODE TRANSCODE(TYPE type, OP op = EQUAL);
+    static DB_Table_CHECKINGACCOUNT::TRANSDATE TRANSDATE(const wxDate& date, OP op = EQUAL);
+    static DB_Table_CHECKINGACCOUNT::TRANSDATE TRANSDATE(const wxString& date, OP op = EQUAL);
+    static DB_Table_CHECKINGACCOUNT::STATUS STATUS(STATUS_ENUM status, OP op = EQUAL);
+    static DB_Table_CHECKINGACCOUNT::TRANSCODE TRANSCODE(TYPE type, OP op = EQUAL);
 
 public:
     static wxDate TRANSDATE(const Data* r);
@@ -160,8 +172,24 @@ public:
     static void getEmptyTransaction(Data &data, int accountID);
     static bool getTransactionData(Data &data, const Data* r);
     static void putDataToTransaction(Data *r, const Data &data);
-    static const bool foreignTransaction(const Data& data);
-    static const bool foreignTransactionAsTransfer(const Data& data);
+    static bool foreignTransaction(const Data& data);
+    static bool foreignTransactionAsTransfer(const Data& data);
 };
 
-#endif // 
+class TransactionStatus
+{
+private:
+    int m_account_b;
+    wxString m_status_a;
+    wxString m_status_b;
+
+public:
+    TransactionStatus();
+    TransactionStatus(const DB_Table_CHECKINGACCOUNT::Data& data);
+    TransactionStatus(const DB_Table_CHECKINGACCOUNT::Data* data);
+    void InitStatus(const DB_Table_CHECKINGACCOUNT::Data& data);
+    void InitStatus(const DB_Table_CHECKINGACCOUNT::Data* data);
+    void SetStatus(const wxString& status, int account_id, DB_Table_CHECKINGACCOUNT::Data& data);
+    void SetStatusA(const wxString& status);
+    wxString Status(int account_id);
+};

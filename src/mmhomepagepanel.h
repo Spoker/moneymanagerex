@@ -21,12 +21,13 @@
 
 #include "mmpanelbase.h"
 #include "constants.h"
-#include "reports/mmDateRange.h"
-#include "model/Model_Account.h"
+#include "Model_Account.h"
 
 class mmGUIFrame;
 class mmHTMLBuilder;
 class mmDateRange;
+class wxWebView;
+class wxWebViewEvent;
 
 class mmHomePagePanel : public mmPanelBase
 {
@@ -55,6 +56,7 @@ public:
 public:
     mmGUIFrame* m_frame;
 private:
+    static const std::vector < std::pair <wxString, wxString> > acc_type_str;
     wxString GetHomePageText() const;
     wxWebView* browser_;
     mmDateRange* date_range_;

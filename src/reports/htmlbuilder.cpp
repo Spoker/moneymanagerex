@@ -1,6 +1,7 @@
 /*******************************************************
  Copyright (C) 2006 Madhan Kanagavel, Paulo Lopes
  copyright (C) 2012 Nikolay
+ Copyright (C) 2017 James Higley
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -21,13 +22,12 @@
 #include "util.h"
 #include "option.h"
 #include "constants.h"
-#include "model/Model_Currency.h"
-#include "model/Model_Infotable.h"
+#include "Model_Currency.h"
+#include "Model_Infotable.h"
 
 namespace tags
 {
 static const wxString END = R"(
-</body>
 <script>
     var elements = document.getElementsByClassName('money');
     for (var i = 0; i < elements.length; i++) {
@@ -37,11 +37,12 @@ static const wxString END = R"(
         }
     }
 </script>
+</body>
 </html>
 )";
 static const char HTML[] = R"(<!DOCTYPE html>
 <html><head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
 <title>%s - Report</title>
 <link href = 'master.css' rel = 'stylesheet' />
 <script src = 'ChartNew.js'></script>
@@ -111,9 +112,10 @@ static const wxString COLORS [] = {
 
 mmHTMLBuilder::mmHTMLBuilder()
 {
-    today_.date = wxDateTime::Today();
-    today_.todays_date = wxString::Format(_("Today's Date: %s")
-		, mmGetNiceDateSimpleString(today_.date));
+    today_.date = wxDateTime::Now();
+    today_.todays_date = wxString::Format(_("Report Generated %s %s")
+        , mmGetDateForDisplay(today_.date.FormatISODate())
+        , today_.date.FormatISOTime());
 }
 
 void mmHTMLBuilder::init()
@@ -205,11 +207,13 @@ void mmHTMLBuilder::addTotalRow(const wxString& caption, int cols, const std::ve
     this->addTotalRow(caption, cols, data_str);
 }
 
-void mmHTMLBuilder::addTableHeaderCell(const wxString& value, const bool numeric, const bool sortable)
+void mmHTMLBuilder::addTableHeaderCell(const wxString& value, const bool numeric, const bool sortable, const int cols, const bool center)
 {
     const wxString sort = (sortable ? "" : " class='sorttable_nosort'");
-    const wxString align = (numeric ? " class='text-right'" : " class='text-left'");
-    html_ += wxString::Format(tags::TABLE_HEADER, sort + align);
+    const wxString align = (center ? " class='text-center'" : (numeric ? " class='text-right'" : " class='text-left'"));
+    const wxString cspan = (cols > 1 ? wxString::Format(" colspan=\"%i\"", cols) : "");
+
+    html_ += wxString::Format(tags::TABLE_HEADER, sort + align + cspan);
     html_ += (value);
     html_+= tags::TABLE_HEADER_END;
 }
@@ -244,9 +248,9 @@ void mmHTMLBuilder::addTableCellDate(const wxString& iso_date)
     this->endTableCell();
 }
 
-void mmHTMLBuilder::addTableCell(const wxString& value, const bool numeric)
+void mmHTMLBuilder::addTableCell(const wxString& value, const bool numeric, const bool center)
 {
-    const wxString align = numeric ? " class='text-right' nowrap" : " class='text-left'";
+    const wxString align = (center ? " class='text-center'" : (numeric ? " class='text-right' nowrap" : " class='text-left'"));
     html_ += wxString::Format(tags::TABLE_CELL, align);
     html_ += value;
     this->endTableCell();
@@ -287,7 +291,7 @@ void mmHTMLBuilder::addTableCellMonth(int month)
     if (month >= 0 && month < 12) {
         wxString f = wxString::Format(" sorttable_customkey = '%i'", (wxDateTime::Month)month);
         html_ += wxString::Format(tags::TABLE_CELL, f);
-        html_ += wxGetTranslation(wxDateTime::GetMonthName((wxDateTime::Month)month));
+        html_ += wxGetTranslation(wxDateTime::GetEnglishMonthName((wxDateTime::Month)month));
         this->endTableCell();
     }
     else
@@ -303,12 +307,12 @@ void mmHTMLBuilder::addTableCellLink(const wxString& href
 void mmHTMLBuilder::DisplayDateHeading(const wxDateTime& startDate, const wxDateTime& endDate, bool withDateRange)
 {
 
-    wxString todaysDate = today_.todays_date + tags::BR + tags::BR;
+    wxString todaysDate = "";
     if (withDateRange)
     {
         todaysDate << wxString::Format(_("From %s till %s")
-            , wxString(mmGetNiceDateSimpleString(startDate)).Prepend("<b>").Append("</b> ")
-            , wxString(mmGetNiceDateSimpleString(endDate)).Prepend("<b>").Append("</b> "));
+            , mmGetDateForDisplay(startDate.FormatISODate())
+            , mmGetDateForDisplay(endDate.FormatISODate()));
     }
     else
     {
@@ -413,11 +417,59 @@ void mmHTMLBuilder::endTableCell()
     html_+= tags::TABLE_CELL_END;
 }
 
+void mmHTMLBuilder::addRadarChart(std::vector<ValueTrio>& actData, std::vector<ValueTrio>& estData, const wxString& id, const int x, const int y)
+{
+    static const wxString data_item =
+        "{\n"
+        "  'label' : '%s',\n"
+        "  'fillColor' : '%s',\n"
+        "  'strokeColor' : '%s',\n"
+        "  'pointColor' : '%s',\n"
+        "  'pointStrokeColor' : '#fff',\n"
+        "  'data' : [%s],\n"
+        "},\n";
+
+    static const wxString js = "<script type='text/javascript'>\n"
+        "var data = {\n"
+        "  labels : [%s],\n"
+        "  datasets : [%s]\n"
+        "};\n"
+        "var ctx = document.getElementById('%s').getContext('2d');\n"
+        "var reportChart = new Chart(ctx).Radar(data, %s);\n"
+        "</script>\n";
+    static const wxString opt =
+        "{datasetFill: false,\n"
+        "inGraphDataShow : false,\n"
+        "annotateDisplay : true,\n"
+        "responsive: true,\n"
+        "pointDot : false,\n"
+        "showGridLines: true}";
+
+    wxString labels = "";
+    wxString actValues = "";
+    wxString estValues = "";
+
+    for (const auto& entry : actData)
+    {
+        labels += wxString::Format("'%s',", entry.label);
+        actValues += wxString::FromCDouble(entry.amount, 2) + ",";
+    }
+    for (const auto& entry : estData)
+    {
+        estValues += wxString::FromCDouble(entry.amount, 2) + ",";
+    }
+
+    wxString datasets = wxString::Format(data_item, _("Actual"), getColor(8), getColor(8), getColor(8), actValues);
+    datasets += wxString::Format(data_item, _("Estimated"), getColor(6), getColor(6), getColor(6), estValues);
+    this->addText(wxString::Format("<canvas id='%s' width ='%i' height='%i'></canvas>\n", id, x, y));
+    this->addText(wxString::Format(js, labels, datasets, id, opt));
+}
+
 void mmHTMLBuilder::addPieChart(std::vector<ValueTrio>& valueList, const wxString& id, const int x, const int y)
 {
     static const wxString data_item =
         "{\n"
-        "value : %.2f,\n"
+        "value : %s,\n"
         "color : '%s',\n"
         "title : '%s',\n"
         "},\n";
@@ -440,7 +492,7 @@ void mmHTMLBuilder::addPieChart(std::vector<ValueTrio>& valueList, const wxStrin
         label.Replace("'", " ");
 
         data += wxString::Format(data_item
-            , fabs(entry.amount), entry.color
+            , wxString::FromCDouble(fabs(entry.amount), 2), entry.color
             , label );
     }
     this->addText(wxString::Format("<canvas id='%s' width ='%i' height='%i' style='min-width: %dpx; min-height: %dpx'></canvas>\n", id, x, y, x, y));
@@ -479,7 +531,7 @@ void mmHTMLBuilder::addBarChart(const wxString &labels, const std::vector<ValueT
     wxString values = "";
     for (const auto& entry : data)
     {
-        values += wxString::Format(data_item, entry.color, entry.color, wxString::Format("%.2f", entry.amount), entry.label);
+        values += wxString::Format(data_item, entry.color, entry.color, wxString::FromCDouble(entry.amount, 2), entry.label);
         scaleStepWidth = std::max(entry.amount, scaleStepWidth);
     }
     scaleStepWidth = ceil(scaleStepWidth / steps);
@@ -529,7 +581,7 @@ void mmHTMLBuilder::addLineChart(const std::vector<ValueTrio>& data, const wxStr
     for (const auto& entry : data)
     {
         labels += wxString::Format("'%s',", entry.label);
-        values += wxString::Format("%.2f,", entry.amount);
+        values += wxString::FromCDouble(entry.amount, 2) + ",";
     }
 
     wxString datasets = wxString::Format(data_item, "LineChart", getColor(index), getColor(index), getColor(index), values);

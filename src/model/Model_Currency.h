@@ -20,14 +20,18 @@
 #define MODEL_CURRENCY_H
 
 #include "Model.h"
-#include "db/DB_Table_Currencyformats_V1.h"
-#include "Model_Infotable.h" // detect base currency setting BASECURRENCYID
+#include "Table_Currencyformats.h"
 #include <map>
 
-class Model_Currency : public Model<DB_Table_CURRENCYFORMATS_V1>
+class Model_Currency : public Model<DB_Table_CURRENCYFORMATS>
 {
 public:
-    using Model<DB_Table_CURRENCYFORMATS_V1>::remove;
+    using Model<DB_Table_CURRENCYFORMATS>::remove;
+
+    enum CURRTYPE { FIAT = 0, CRYPTO};
+
+    static const std::vector<std::pair<CURRTYPE, wxString> > CURRTYPE_CHOICES;
+
     Model_Currency();
     ~Model_Currency();
 
@@ -49,12 +53,11 @@ public:
 public:
     wxArrayString all_currency_names();
     wxArrayString all_currency_symbols();
+    wxArrayString all_currency_types();
 
     /** Return the Data record of the base currency.*/
     static Data* GetBaseCurrency();
-
-    /** Resets all BASECONVRATE to 1 */
-    static void ResetBaseConversionRates();
+    static bool GetBaseCurrencySymbol(wxString& base_currency_symbol);
 
     /** Return the currency Data record for the given symbol */
     Model_Currency::Data* GetCurrencyRecord(const wxString& currency_symbol);
@@ -67,19 +70,22 @@ public:
 
     static std::map<wxDateTime,int> DateUsed(int CurrencyID);
 
+    /** Return the description of the choice type */
+    static wxString currtype_desc(const int CurrTypeEnum);
+
     /** Add prefix and suffix characters to string value */
     static wxString toCurrency(double value, const Data* currency = GetBaseCurrency(), int precision = -1);
- 
-    static wxString os_group_separator();
-    /** convert value to a string with required precision. Currency is used only for percision */
+
+    /** convert value to a string with required precision. Currency is used only for precision */
     static wxString toStringNoFormatting(double value, const Data* currency = GetBaseCurrency(), int precision = -1);
     /** convert value to a currency formatted string with required precision */
     static wxString toString(double value, const Data* currency = GetBaseCurrency(), int precision = -1);
-    /** Reset currency string like 1.234,56 to standard number format like 1234.56 */
+    /** Reset currency string like 1.234,56 to standard C locale number format like 1234.56 */
     static const wxString fromString2Default(const wxString &s, const Data* currency = Model_Currency::GetBaseCurrency());
     static bool fromString(wxString s, double& val, const Data* currency = GetBaseCurrency());
     static int precision(const Data* r);
     static int precision(const Data& r);
     static int precision(int account_id);
+    static bool BoolOf(int value);
 };
 #endif // 

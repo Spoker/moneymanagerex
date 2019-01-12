@@ -22,10 +22,16 @@
 #include "images_list.h"
 #include "option.h"
 #include "mmex.h"
-#include "mmframe.h"
+#include "util.h"
 #include "reports/budget.h"
 #include "reports/mmDateRange.h"
-#include "model/allmodel.h"
+#include "Model_Usage.h"
+#include "Model_Category.h"
+#include "Model_Subcategory.h"
+#include "Model_Budgetyear.h"
+#include "Model_Setting.h"
+#include "Model_Infotable.h"
+#include "Model_Currency.h"
 
 enum
 {
@@ -68,14 +74,12 @@ wxBEGIN_EVENT_TABLE(budgetingListCtrl, mmListCtrl)
 wxEND_EVENT_TABLE()
 /*******************************************************/
 mmBudgetingPanel::mmBudgetingPanel(int budgetYearID
-    , wxWindow *parent, mmGUIFrame* frame, wxWindowID winid
+    , wxWindow *parent, wxWindowID winid
     , const wxPoint& pos, const wxSize& size
     , long style,const wxString& name)
-    : m_imageList(nullptr)
-    , listCtrlBudget_(nullptr)
+    : listCtrlBudget_(nullptr)
     , budgetYearID_(budgetYearID)
-    , m_frame(frame)
-    , budgetReportHeading_(nullptr)
+    , m_imageList(nullptr)
     , income_estimated_(nullptr)
     , income_actual_(nullptr)
     , income_diff_(nullptr)
@@ -94,6 +98,7 @@ bool mmBudgetingPanel::Create(wxWindow *parent
     wxPanel::Create(parent, winid, pos, size, style, name);
 
     this->windowsFreezeThaw();
+    wxDateTime start = wxDateTime::UNow();
     CreateControls();
     GetSizer()->Fit(this);
     GetSizer()->SetSizeHints(this);
@@ -103,7 +108,7 @@ bool mmBudgetingPanel::Create(wxWindow *parent
         listCtrlBudget_->EnsureVisible(0);
 
     this->windowsFreezeThaw();
-    Model_Usage::instance().pageview(this);
+    Model_Usage::instance().pageview(this, (wxDateTime::UNow() - start).GetMilliseconds().ToLong());
     return TRUE;
 }
 
@@ -176,7 +181,7 @@ wxString mmBudgetingPanel::GetPanelTitle() const
             long year;
             yearStr.ToLong(&year);
             year++;
-            yearStr = wxString::Format(_("Financial Year: %s - %i"), yearStr, year);
+            yearStr = wxString::Format(_("Financial Year: %s - %li"), yearStr, year);
         }
         else
         {
@@ -187,6 +192,12 @@ wxString mmBudgetingPanel::GetPanelTitle() const
     {
         yearStr = wxString::Format(_("Month: %s"), yearStr);
     }
+
+    if (Option::instance().BudgetDaysOffset() != 0)
+    {
+        yearStr = wxString::Format(_("%s    Start Date of: %s"), yearStr, mmGetDateForDisplay(m_budget_offset_date));
+    }
+
     return wxString::Format(_("Budget Setup for %s"), yearStr);
 }
 
@@ -290,7 +301,8 @@ void mmBudgetingPanel::CreateControls()
     /* Get data from inidb */
     for (int i = 0; i < listCtrlBudget_->GetColumnCount(); ++i)
     {
-        int col = Model_Setting::instance().GetIntSetting(wxString::Format(listCtrlBudget_->m_col_width, i), listCtrlBudget_->m_columns[i].WIDTH);
+        int col = Model_Setting::instance().GetIntSetting(wxString::Format(listCtrlBudget_->m_col_width, i)
+            , listCtrlBudget_->m_columns[i].WIDTH);
         listCtrlBudget_->SetColumnWidth(i, col);
     }
     itemBoxSizer2->Add(listCtrlBudget_, 1, wxGROW | wxALL, 1);
@@ -389,12 +401,18 @@ void mmBudgetingPanel::initVirtualListControl()
         budgetDetails.AdjustYearValues(day, month, dtBegin);
         budgetDetails.AdjustDateForEndFinancialYear(dtEnd);
     }
+
+    // Readjust dates by the Budget Offset Option
+    Option::instance().BudgetDateOffset(dtBegin);
+    m_budget_offset_date = dtBegin.FormatISODate();
+    Option::instance().BudgetDateOffset(dtEnd);
     mmSpecifiedRange date_range(dtBegin, dtEnd);
+
     //Get statistics
     Model_Budget::instance().getBudgetEntry(budgetYearID_, budgetPeriod_, budgetAmt_);
     Model_Category::instance().getCategoryStats(categoryStats_
         , &date_range, Option::instance().IgnoreFutureTransactions()
-        , false, true, (evaluateTransfer ? &budgetAmt_ : 0));
+        , false, (evaluateTransfer ? &budgetAmt_ : 0));
 
     const Model_Subcategory::Data_Set& allSubcategories = Model_Subcategory::instance().all(Model_Subcategory::COL_SUBCATEGNAME);
     for (const auto& category : Model_Category::instance().all(Model_Category::COL_CATEGNAME))
@@ -471,7 +489,7 @@ void mmBudgetingPanel::initVirtualListControl()
     wxString est_amount, act_amount, diff_amount;
     est_amount = Model_Currency::toCurrency(estIncome);
     act_amount = Model_Currency::toCurrency(actIncome);
-    diff_amount = Model_Currency::toCurrency(estIncome - actIncome);
+    diff_amount = Model_Currency::toCurrency(actIncome - estIncome);
 
     income_estimated_->SetLabelText(est_amount);
     income_actual_->SetLabelText(act_amount);
@@ -481,7 +499,7 @@ void mmBudgetingPanel::initVirtualListControl()
     if (actExpenses < 0.0) actExpenses = -actExpenses;
     est_amount = Model_Currency::toCurrency(estExpenses);
     act_amount = Model_Currency::toCurrency(actExpenses);
-    diff_amount = Model_Currency::toCurrency(estExpenses - actExpenses);
+    diff_amount = Model_Currency::toCurrency(actExpenses - estExpenses);
 
     expenses_estimated_->SetLabelText(est_amount);
     expenses_actual_->SetLabelText(act_amount);

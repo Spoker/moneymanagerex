@@ -20,21 +20,17 @@
 #ifndef MM_EX_MAINCURRENCY_DIALOG_H_
 #define MM_EX_MAINCURRENCY_DIALOG_H_
 
-#include "defs.h"
 #include <map>
-#include <vector>
-#include <wx/dataview.h>
-
+#include <wx/dialog.h>
 class wxDatePickerCtrl;
+class wxDataViewListCtrl;
+class wxDataViewEvent;
+class wxListCtrl;
+class wxListEvent;
+class wxCheckBox;
+class wxStaticBox;
+class wxBitmapButton;
 class mmTextCtrl;
-
-struct CurrencyHistoryRate
-{
-    wxString BaseCurrency;
-    wxDateTime Date;
-    wxString Currency;
-    double Rate;
-};
 
 class mmMainCurrencyDialog: public wxDialog
 {
@@ -59,6 +55,7 @@ private:
         CURR_SYMBOL,
         CURR_NAME,
         BASE_RATE,
+        CURR_HIST,
         ID_DIALOG = wxID_HIGHEST + 600,
         HISTORY_ADD,
         HISTORY_DELETE,
@@ -88,6 +85,7 @@ private:
     void OnListItemSelected(wxDataViewEvent& event);
     void fillControls();
     void OnShowHiddenChbClick(wxCommandEvent& event);
+    void OnHideHistoricClick(wxCommandEvent& event);
 
     void ShowCurrencyHistory();
     void OnHistoryAdd(wxCommandEvent& event);
@@ -102,6 +100,8 @@ private:
     void OnItemRightClick(wxDataViewEvent& event);
     void OnMenuSelected(wxCommandEvent& event);
     bool SetBaseCurrency(int& baseCurrencyID);
+    bool GetOnlineRates(wxString &msg, int curr_id = -1);
+    bool GetOnlineHistory(std::map<wxDateTime, double> &historical_rates, const wxString &symbol, wxString &msg);
 
     wxDataViewListCtrl* currencyListBox_;
     std::map<int, wxString> ColName_;
@@ -109,20 +109,18 @@ private:
     wxButton* itemButtonEdit_;
     wxButton* itemButtonDelete_;
     wxCheckBox* cbShowAll_;
+    wxCheckBox* cbHideHistoric_;
     wxListCtrl* valueListBox_;
     wxDatePickerCtrl* valueDatePicker_;
     mmTextCtrl* valueTextBox_;
     wxStaticBox* historyStaticBox_;
     wxButton* historyButtonAdd_;
+    wxBitmapButton* m_button_download_history;
     wxButton* historyButtonDelete_;
 
     int m_currency_id;
-    int selectedIndex_;
     bool m_static_dialog;
 
-    std::vector<CurrencyHistoryRate> _BceCurrencyHistoryRatesList;
-    bool HistoryDownloadBce();
-    bool ConvertHistoryRates(const std::vector<CurrencyHistoryRate>& Bce, std::vector<CurrencyHistoryRate>& ConvertedRate, const wxString& BaseCurrencySymbol);
 };
 
 #endif // MM_EX_MAINCURRENCY_DIALOG_H_

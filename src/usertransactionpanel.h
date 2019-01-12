@@ -19,14 +19,16 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #pragma once
 
-#include "constants.h"
-#include "defs.h"
-#include <wx/spinbutt.h>
-#include "mmtextctrl.h"
-#include "model/Model_Translink.h"
-
-class Model_Currency;
-
+#include <wx/panel.h>
+#include "Model_Translink.h"
+class mmTextCtrl;
+class wxDatePickerCtrl;
+class wxSpinButton;
+class wxButton;
+class wxChoice;
+class wxCheckBox;
+class wxStaticText;
+class wxBitmapButton;
 
 class UserTransactionPanel : public wxPanel
 {
@@ -46,11 +48,10 @@ public:
     ~UserTransactionPanel();
 
     int SaveChecking();
-    bool ValidCheckingAccountEntry();
     wxDateTime TransactionDate();
     void TransactionDate(const wxDateTime& trans_date);
 
-    void SetTransactionValue(const double& trans_value, bool fixed_value = false);
+    void SetTransactionValue(const double& trans_value, const double& commission, bool fixed_value = false);
     void SetTransactionNumber(const wxString& trans_number);
     void SetTransactionAccount(const wxString& trans_account);
 
@@ -66,6 +67,8 @@ private:
     int m_payee_id;
     int m_category_id;
     int m_subcategory_id;
+    double m_trans_value;
+    double m_commission;
 
 private:
     void Create();
@@ -81,22 +84,35 @@ private:
     void SetNewDate(wxDatePickerCtrl* dpc, bool forward = true);
 
     void OnEnteredText(wxCommandEvent& event);
+    void OnTypeChoice(wxCommandEvent& WXUNUSED(event));
     void OnFrequentNotes(wxCommandEvent& event);
     void onSelectedNote(wxCommandEvent& event);
     void OnAttachments(wxCommandEvent& WXUNUSED(event));
 
+public:
+    enum GUI_ERROR
+    {
+        ENTRY,
+        ACCOUNT,
+        PAYEE,
+        CATEGORY,
+        NONE,
+    };
+
+    mmTextCtrl* m_entered_amount;
+    wxButton* m_account;
+    wxButton* m_payee;
+    wxButton* m_category;
+
+    bool ValidCheckingAccountEntry(GUI_ERROR& g_err);
+
 private:
     wxDatePickerCtrl* m_date_selector;
     wxSpinButton* m_date_controller;
-
-    wxButton* m_account;
     wxChoice* m_status_selector;
     wxChoice* m_type_selector;
-    mmTextCtrl* m_entered_amount;
     wxCheckBox* m_transfer;
-    wxButton* m_trans_currency;
-    wxButton* m_payee;
-    wxButton* m_category;
+    wxStaticText* m_trans_currency;
     wxTextCtrl* m_entered_number;
     wxTextCtrl* m_entered_notes;
     std::vector<wxString> m_frequent_notes;
@@ -117,6 +133,5 @@ private:
         ID_TRANS_ENTERED_NOTES,
         ID_TRANS_FREQUENT_NOTES,
         ID_TRANS_TRANSFER,
-        ID_TRANS_CURRENCY_BUTTON,
     };
 };

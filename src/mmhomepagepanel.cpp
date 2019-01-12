@@ -21,21 +21,24 @@ Copyright (C) 2014 Nikolay
 #include "mmex.h"
 #include "mmframe.h"
 #include "paths.h"
-
 #include "html_template.h"
 #include "billsdepositspanel.h"
-#include <algorithm>
-#include <cmath>
-
 #include "constants.h"
 #include "option.h"
 #include "util.h"
-
-#include "model/allmodel.h"
-
-#include "cajun/json/elements.h"
-#include "cajun/json/reader.h"
-#include "cajun/json/writer.h"
+#include "Model_CurrencyHistory.h"
+#include "Model_Asset.h"
+#include "Model_Setting.h"
+#include "Model_Usage.h"
+#include "Model_Payee.h"
+#include "Model_Stock.h"
+#include "Model_Category.h"
+#include "Model_Report.h"
+#include "Model_Infotable.h"
+#include "reports/mmDateRange.h"
+#include <algorithm>
+#include <cmath>
+#include <wx/webviewfshandler.h>
 
 static const wxString TOP_CATEGS = R"(
 <table class = 'table'>
@@ -135,24 +138,26 @@ void htmlWidgetStocks::calculate_stats(std::map<int, std::pair<double, double> >
     this->grand_total_ = 0;
     this->grand_gain_lost_ = 0;
     const auto &stocks = Model_Stock::instance().all();
+    const wxDate today = wxDate::Today();
     for (const auto& stock : stocks)
     {   
-        double conv_rate = 1;
+        double today_conv_rate = 1;
+        double purchase_conv_rate = 1;
         Model_Account::Data *account = Model_Account::instance().get(stock.HELDAT);
         if (account)
-        {   
-            Model_Currency::Data *currency = Model_Currency::instance().get(account->CURRENCYID);
-            conv_rate = currency->BASECONVRATE;
+        {
+            today_conv_rate = Model_CurrencyHistory::getDayRate(account->CURRENCYID, today);
+            purchase_conv_rate = Model_CurrencyHistory::getDayRate(account->CURRENCYID, stock.PURCHASEDATE);
         }   
         std::pair<double, double>& values = stockStats[stock.HELDAT];
-        double current_value = Model_Stock::CurrentValue(stock);
-        double gain_lost = (current_value - stock.VALUE - stock.COMMISSION);
+        double current_value = Model_Stock::CurrentValue(stock) * today_conv_rate;
+        double gain_lost = (current_value - stock.VALUE * purchase_conv_rate - stock.COMMISSION * today_conv_rate);
         values.first += gain_lost;
         values.second += current_value;
         if (account && account->STATUS == VIEW_ACCOUNTS_OPEN_STR)
         {   
-            grand_total_ += current_value * conv_rate;
-            grand_gain_lost_ += gain_lost * conv_rate;
+            grand_total_ += current_value;
+            grand_gain_lost_ += gain_lost;
         }   
     }   
 }
@@ -225,13 +230,6 @@ void htmlWidgetTop7Categories::getTopCategoryStats(
     std::vector<std::pair<wxString, double> > &categoryStats
     , const mmDateRange* date_range) const
 {
-    //Get base currency rates for all accounts
-    std::map<int, double> acc_conv_rates;
-    for (const auto& account: Model_Account::instance().all())
-    {
-        Model_Currency::Data* currency = Model_Account::currency(account);
-        acc_conv_rates[account.ACCOUNTID] = currency->BASECONVRATE;
-    }
     //Temporary map
     std::map<std::pair<int /*category*/, int /*sub category*/>, double> stat;
 
@@ -246,23 +244,22 @@ void htmlWidgetTop7Categories::getTopCategoryStats(
     {
         bool withdrawal = Model_Checking::type(trx) == Model_Checking::WITHDRAWAL;
         const auto it = splits.find(trx.TRANSID);
+        const double convRate = Model_CurrencyHistory::getDayRate(Model_Account::instance().get(trx.ACCOUNTID)->CURRENCYID, trx.TRANSDATE);
 
         if (it == splits.end())
         {
             std::pair<int, int> category = std::make_pair(trx.CATEGID, trx.SUBCATEGID);
             if (withdrawal)
-                stat[category] -= trx.TRANSAMOUNT * (acc_conv_rates[trx.ACCOUNTID]);
+                stat[category] -= trx.TRANSAMOUNT * convRate;
             else
-                stat[category] += trx.TRANSAMOUNT * (acc_conv_rates[trx.ACCOUNTID]);
+                stat[category] += trx.TRANSAMOUNT * convRate;
         }
         else
         {
             for (const auto& entry : it->second)
             {
                 std::pair<int, int> category = std::make_pair(entry.CATEGID, entry.SUBCATEGID);
-                double val = entry.SPLITTRANSAMOUNT
-                    * (acc_conv_rates[trx.ACCOUNTID])
-                    * (withdrawal ? -1 : 1);
+                double val = entry.SPLITTRANSAMOUNT * convRate * (withdrawal ? -1 : 1);
                 stat[category] += val;
             }
         }
@@ -313,8 +310,8 @@ protected:
 };
 
 htmlWidgetBillsAndDeposits::htmlWidgetBillsAndDeposits(const wxString& title, mmDateRange* date_range)
-    : title_(title)
-    , date_range_(date_range)
+    : date_range_(date_range)
+    , title_(title)
 {}
 
 htmlWidgetBillsAndDeposits::~htmlWidgetBillsAndDeposits()
@@ -352,19 +349,26 @@ wxString htmlWidgetBillsAndDeposits::getHTMLText()
         if (daysOverdue < 0)
             daysRemainingStr = wxString::Format(_("%d days overdue!"), std::abs(daysOverdue));
 
+        wxString accountStr = "";
+        const auto *account = Model_Account::instance().get(entry.ACCOUNTID);
+        if (account) accountStr = account->ACCOUNTNAME;
+
+
         wxString payeeStr = "";
         if (Model_Billsdeposits::type(entry) == Model_Billsdeposits::TRANSFER)
         {   
-            const Model_Account::Data *account = Model_Account::instance().get(entry.TOACCOUNTID);
-            if (account) payeeStr = account->ACCOUNTNAME;
+            const Model_Account::Data *toaccount = Model_Account::instance().get(entry.TOACCOUNTID);
+            if (toaccount) payeeStr = toaccount->ACCOUNTNAME;
+            payeeStr += " &larr; " + accountStr;
         }   
         else
         {   
             const Model_Payee::Data* payee = Model_Payee::instance().get(entry.PAYEEID);
-            if (payee) payeeStr = payee->PAYEENAME;
+            payeeStr = accountStr;
+            payeeStr += (Model_Billsdeposits::type(entry) == Model_Billsdeposits::WITHDRAWAL ? " &rarr; " : " &larr; ");
+            if (payee) payeeStr += payee->PAYEENAME;
         }   
-        const auto *account = Model_Account::instance().get(entry.ACCOUNTID);
-        double amount = (Model_Billsdeposits::type(entry) == Model_Billsdeposits::DEPOSIT ? entry.TRANSAMOUNT : -entry.TRANSAMOUNT);
+        double amount = (Model_Billsdeposits::type(entry) == Model_Billsdeposits::WITHDRAWAL ? -entry.TRANSAMOUNT : entry.TRANSAMOUNT);
         bd_days.push_back(std::make_tuple(daysPayment, payeeStr, daysRemainingStr, amount, account));
     }   
 
@@ -384,7 +388,7 @@ wxString htmlWidgetBillsAndDeposits::getHTMLText()
 
         output += wxString::Format("<tbody id='%s'>\n", idStr);
         output += wxString::Format("<tr style='background-color: #d8ebf0'><th>%s</th>\n<th class='text-right'>%s</th>\n<th class='text-right'>%s</th></tr>\n"
-            , _("Payee"), _("Amount"), _("Payment"));
+            , _("Account / Payee"), _("Amount"), _("Payment"));
 
         for (const auto& item : bd_days)
         {
@@ -465,6 +469,17 @@ wxBEGIN_EVENT_TABLE(mmHomePagePanel, wxPanel)
 EVT_WEBVIEW_NAVIGATING(wxID_ANY, mmHomePagePanel::OnLinkClicked)
 wxEND_EVENT_TABLE()
 
+const std::vector < std::pair <wxString, wxString> > mmHomePagePanel::acc_type_str
+{
+    //    enum TYPE { CASH = 0, CHECKING, CREDIT_CARD, LOAN, TERM, CRYPTO, INVESTMENT, ASSET, SHARES };
+    { "CASH_ACCOUNTS_INFO", wxTRANSLATE("Cash Accounts") },
+    { "ACCOUNTS_INFO", wxTRANSLATE("Bank Accounts") },
+    { "CARD_ACCOUNTS_INFO", wxTRANSLATE("Credit Card Accounts") },
+    { "LOAN_ACCOUNTS_INFO", wxTRANSLATE("Loan Accounts") },
+    { "TERM_ACCOUNTS_INFO", wxTRANSLATE("Term Accounts") },
+    { "CRYPTO_WALLETS_INFO", wxTRANSLATE("Crypto Wallets") },
+};
+
 mmHomePagePanel::mmHomePagePanel(wxWindow *parent, mmGUIFrame *frame
     , wxWindowID winid
     , const wxPoint& pos
@@ -472,9 +487,9 @@ mmHomePagePanel::mmHomePagePanel(wxWindow *parent, mmGUIFrame *frame
     , long style
     , const wxString& name)
     : m_frame(frame)
-    , countFollowUp_(0)
-    , date_range_(nullptr)
     , browser_(nullptr)
+    , date_range_(nullptr)
+    , countFollowUp_(0)
 {
     Create(parent, winid, pos, size, style, name);
     m_frame->menuPrintingEnable(true);
@@ -501,6 +516,7 @@ bool mmHomePagePanel::Create(wxWindow *parent
 {
     SetExtraStyle(GetExtraStyle() | wxWS_EX_BLOCK_EVENTS);
     wxPanelBase::Create(parent, winid, pos, size, style, name);
+    wxDateTime start = wxDateTime::UNow();
 
     CreateControls();
     GetSizer()->Fit(this);
@@ -508,12 +524,12 @@ bool mmHomePagePanel::Create(wxWindow *parent
 
     createHTML();
 
-    Model_Usage::instance().pageview(this);
+    Model_Usage::instance().pageview(this, (wxDateTime::UNow() - start).GetMilliseconds().ToLong());
 
     return TRUE;
 }
 
-void  mmHomePagePanel::createHTML()
+void mmHomePagePanel::createHTML()
 {
     getTemplate();
     getData();
@@ -556,29 +572,35 @@ void mmHomePagePanel::getData()
     m_frames["HTMLSCALE"] = wxString::Format("%d", Option::instance().HtmlFontSize());
 
     vAccts_ = Model_Setting::instance().ViewAccounts();
-    date_range_->destroy();
+    
+    if (date_range_)
+        date_range_->destroy();
+ 
     if (Option::instance().IgnoreFutureTransactions())
         date_range_ = new mmCurrentMonthToDate;
     else
         date_range_ = new mmCurrentMonth;
 
-    double tBalance = 0.0, cardBalance = 0.0, termBalance = 0.0, cashBalance = 0.0, loanBalance = 0.0;
+    double tBalance = 0.0;
 
     std::map<int, std::pair<double, double> > accountStats;
     get_account_stats(accountStats);
 
     m_frames["ACCOUNTS_INFO"] = displayAccounts(tBalance, accountStats);
-    m_frames["CARD_ACCOUNTS_INFO"] = displayAccounts(cardBalance, accountStats, Model_Account::CREDIT_CARD);
-    tBalance += cardBalance;
+    m_frames["CARD_ACCOUNTS_INFO"] = displayAccounts(tBalance
+        , accountStats, Model_Account::CREDIT_CARD);
 
-    m_frames["CASH_ACCOUNTS_INFO"] = displayAccounts(cashBalance, accountStats, Model_Account::CASH);
-    tBalance += cashBalance;
+    m_frames["CASH_ACCOUNTS_INFO"] = displayAccounts(tBalance
+        , accountStats, Model_Account::CASH);
 
-    m_frames["LOAN_ACCOUNTS_INFO"] = displayAccounts(loanBalance, accountStats, Model_Account::LOAN);
-    tBalance += loanBalance;
+    m_frames["LOAN_ACCOUNTS_INFO"] = displayAccounts(tBalance
+        , accountStats, Model_Account::LOAN);
 
-    m_frames["TERM_ACCOUNTS_INFO"] = displayAccounts(termBalance, accountStats, Model_Account::TERM);
-    tBalance += termBalance;
+    m_frames["TERM_ACCOUNTS_INFO"] = displayAccounts(tBalance
+        , accountStats, Model_Account::TERM);
+    
+    m_frames["CRYPTO_WALLETS_INFO"] = displayAccounts(tBalance
+        , accountStats, Model_Account::CRYPTO);
 
     //Stocks
     htmlWidgetStocks stocks_widget;
@@ -614,9 +636,8 @@ void mmHomePagePanel::fillData()
     {
         m_templateText.Replace(wxString::Format("<TMPL_VAR %s>", entry.first), entry.second);
     }
-    Model_Report::outputReportFile(m_templateText);
-    browser_->LoadURL(getURL(mmex::getReportIndex()));
-    wxLogDebug("Loading file:%s", mmex::getReportIndex());
+    Model_Report::outputReportFile(m_templateText, "index");
+    browser_->LoadURL(getURL(mmex::getReportFullFileName("index")));
 }
 
 void mmHomePagePanel::get_account_stats(std::map<int, std::pair<double, double> > &accountStats)
@@ -625,7 +646,7 @@ void mmHomePagePanel::get_account_stats(std::map<int, std::pair<double, double> 
     if (Option::instance().IgnoreFutureTransactions())
     {
         all_trans = Model_Checking::instance().find(
-            DB_Table_CHECKINGACCOUNT_V1::TRANSDATE(date_range_->today().FormatISODate(), LESS_OR_EQUAL));
+            DB_Table_CHECKINGACCOUNT::TRANSDATE(date_range_->today().FormatISODate(), LESS_OR_EQUAL));
     }
     else
     {
@@ -658,7 +679,6 @@ void mmHomePagePanel::getExpensesIncomeStats(std::map<int, std::pair<double, dou
 {
     //Initialization
     bool ignoreFuture = Option::instance().IgnoreFutureTransactions();
-    wxDateTime start_date = wxDateTime(date_range->end_date()).SetDay(1);
 
     //Calculations
     const auto &transactions = Model_Checking::instance().find(
@@ -680,9 +700,7 @@ void mmHomePagePanel::getExpensesIncomeStats(std::map<int, std::pair<double, dou
         if (Model_Checking::foreignTransactionAsTransfer(pBankTransaction))
             continue;
 
-        // We got this far, get the currency conversion rate for this account
-        Model_Account::Data *account = Model_Account::instance().get(pBankTransaction.ACCOUNTID);
-        double convRate = (account ? Model_Account::currency(account)->BASECONVRATE : 1);
+        const double convRate = Model_CurrencyHistory::getDayRate(Model_Account::instance().get(pBankTransaction.ACCOUNTID)->CURRENCYID, pBankTransaction.TRANSDATE);
 
         int idx = pBankTransaction.ACCOUNTID;
         if (Model_Checking::type(pBankTransaction) == Model_Checking::DEPOSIT)
@@ -693,22 +711,15 @@ void mmHomePagePanel::getExpensesIncomeStats(std::map<int, std::pair<double, dou
 }
 
 /* Accounts */
-const wxString mmHomePagePanel::displayAccounts(double& tBalance, std::map<int, std::pair<double, double> > &accountStats, int type)
+const wxString mmHomePagePanel::displayAccounts(double& tBalance
+    , std::map<int, std::pair<double, double> > &accountStats, int type)
 {
-    static const std::vector < std::pair <wxString, wxString> > typeStr
-    {
-        { "CASH_ACCOUNTS_INFO", _("Cash Accounts") },
-        { "ACCOUNTS_INFO", _("Bank Accounts") },
-        { "CARD_ACCOUNTS_INFO", _("Credit Card Accounts") },
-        { "LOAN_ACCOUNTS_INFO", _("Loan Accounts") },
-        { "TERM_ACCOUNTS_INFO", _("Term Accounts") },
-    };
-
-    const wxString idStr = typeStr[type].first;
+    wxASSERT(acc_type_str.size() >= (size_t)type );
+    const wxString idStr = acc_type_str[type].first;
     wxString output = "<table class = 'sortable table'>\n";
     output += "<col style=\"width:50%\"><col style=\"width:25%\"><col style=\"width:25%\">\n";
     output += "<thead><tr><th nowrap>";
-    output += typeStr[type].second;
+    output += wxGetTranslation(acc_type_str[type].second);
 
     output += "</th><th class = 'text-right'>" + _("Reconciled") + "</th>\n";
     output += "<th class = 'text-right'>" + _("Balance") + "</th>\n";
@@ -717,7 +728,8 @@ const wxString mmHomePagePanel::displayAccounts(double& tBalance, std::map<int, 
     output += "</tr></thead>\n";
     output += wxString::Format("<tbody id = '%s'>\n", idStr);
 
-    double tReconciled = 0;
+    const wxDate today = wxDate::Today();
+    double total_reconciled = 0.0, total_balance = 0.0;
     wxString body = "";
     for (const auto& account : Model_Account::instance().all(Model_Account::COL_ACCOUNTNAME))
     {
@@ -725,11 +737,11 @@ const wxString mmHomePagePanel::displayAccounts(double& tBalance, std::map<int, 
 
         Model_Currency::Data* currency = Model_Account::currency(account);
         if (!currency) currency = Model_Currency::GetBaseCurrency();
-        double currency_rate = currency->BASECONVRATE;
-        double bal = account.INITIALBAL + accountStats[account.ACCOUNTID].second; //Model_Account::balance(account);
+        const double convRate = Model_CurrencyHistory::getDayRate(currency->CURRENCYID, today);
+        double acc_bal = account.INITIALBAL + accountStats[account.ACCOUNTID].second; //Model_Account::balance(account);
         double reconciledBal = account.INITIALBAL + accountStats[account.ACCOUNTID].first;
-        tBalance += bal * currency_rate;
-        tReconciled += reconciledBal * currency_rate;
+        total_balance += acc_bal * convRate;
+        total_reconciled += reconciledBal * convRate;
 
         // show the actual amount in that account
         if (((vAccts_ == VIEW_ACCOUNTS_OPEN_STR && Model_Account::status(account) == Model_Account::OPEN) ||
@@ -739,27 +751,27 @@ const wxString mmHomePagePanel::displayAccounts(double& tBalance, std::map<int, 
             body += "<tr>";
             body += wxString::Format("<td sorttable_customkey='*%s*' nowrap><a href='acct:%i' oncontextmenu='return false;'>%s</a></td>\n"
                 , account.ACCOUNTNAME, account.ACCOUNTID, account.ACCOUNTNAME);
-            body += wxString::Format("<td class='money' sorttable_customkey='%f' nowrap>%s</td>\n", reconciledBal, Model_Currency::toCurrency(reconciledBal, currency));
-            body += wxString::Format("<td class='money' sorttable_customkey='%f' colspan='2' nowrap>%s</td>\n", bal, Model_Currency::toCurrency(bal, currency));
+            body += wxString::Format("<td class='money' sorttable_customkey='%f' nowrap>%s</td>\n"
+                , reconciledBal, Model_Currency::toCurrency(reconciledBal, currency));
+            body += wxString::Format("<td class='money' sorttable_customkey='%f' colspan='2' nowrap>%s</td>\n"
+                , acc_bal, Model_Currency::toCurrency(acc_bal, currency));
             body += "</tr>\n";
         }
     }
     output += body;
     output += "</tbody><tfoot><tr class ='total'><td>" + _("Total:") + "</td>\n";
-    output += "<td class='money'>" + Model_Currency::toCurrency(tReconciled) + "</td>\n";
-    output += "<td class='money' colspan='2'>" + Model_Currency::toCurrency(tBalance) + "</td></tr></tfoot></table>\n";
+    output += "<td class='money'>" + Model_Currency::toCurrency(total_reconciled) + "</td>\n";
+    output += "<td class='money' colspan='2'>" + Model_Currency::toCurrency(total_balance)
+        + "</td></tr></tfoot></table>\n";
     if (body.empty()) output.clear();
 
+    tBalance += total_balance;
     return output;
 }
 
 //* Income vs Expenses *//
 const wxString mmHomePagePanel::displayIncomeVsExpenses()
 {
-    json::Object o;
-    o.Clear();
-    std::wstringstream ss;
-
     double tIncome = 0.0, tExpenses = 0.0;
     std::map<int, std::pair<double, double> > incomeExpensesStats;
     getExpensesIncomeStats(incomeExpensesStats, date_range_);
@@ -780,69 +792,108 @@ const wxString mmHomePagePanel::displayIncomeVsExpenses()
         if (s > 0) scaleStepWidth = ceil(scaleStepWidth / s)*s;
     }
 
-    o[L"0"] = json::String(wxString::Format(_("Income vs Expenses: %s"), date_range_->local_title()).ToStdWstring());
-    o[L"1"] = json::String(_("Type").ToStdWstring());
-    o[L"2"] = json::String(_("Amount").ToStdWstring());
-    o[L"3"] = json::String(_("Income").ToStdWstring());
-    o[L"4"] = json::String(Model_Currency::toCurrency(tIncome).ToStdWstring());
-    o[L"5"] = json::String(_("Expenses").ToStdWstring());
-    o[L"6"] = json::String(Model_Currency::toCurrency(tExpenses).ToStdWstring());
-    o[L"7"] = json::String(_("Difference:").ToStdWstring());
-    o[L"8"] = json::String(Model_Currency::toCurrency(tIncome - tExpenses).ToStdWstring());
-    o[L"9"] = json::String(_("Income/Expenses").ToStdWstring());
-    o[L"10"] = json::String(wxString::Format("%.2f", tIncome).ToStdWstring());
-    o[L"11"] = json::String(wxString::Format("%.2f", tExpenses).ToStdWstring());
-    o[L"12"] = json::Number(steps);
-    o[L"13"] = json::Number(scaleStepWidth);
+    StringBuffer json_buffer;
+    PrettyWriter<StringBuffer> json_writer(json_buffer);
+    json_writer.StartObject();
+    json_writer.Key("0");
+    json_writer.String(wxString::Format(_("Income vs Expenses: %s"), date_range_->local_title()).c_str());
+    json_writer.Key("1");
+    json_writer.String(_("Type").c_str());
+    json_writer.Key("2");
+    json_writer.String(_("Amount").c_str());
+    json_writer.Key("3");
+    json_writer.String(_("Income").c_str());
+    json_writer.Key("4");
+    json_writer.String(Model_Currency::toCurrency(tIncome).c_str());
+    json_writer.Key("5");
+    json_writer.String(_("Expenses").c_str());
+    json_writer.Key("6");
+    json_writer.String(Model_Currency::toCurrency(tExpenses).c_str());
+    json_writer.Key("7");
+    json_writer.String(_("Difference:").c_str());
+    json_writer.Key("8");
+    json_writer.String(Model_Currency::toCurrency(tIncome - tExpenses).c_str());
+    json_writer.Key("9");
+    json_writer.String(_("Income/Expenses").c_str());
+    json_writer.Key("10");
+    json_writer.String(wxString::FromCDouble(tIncome, 2).c_str());
+    json_writer.Key("11");
+    json_writer.String(wxString::FromCDouble(tExpenses, 2).c_str());
+    json_writer.Key("12");
+    json_writer.Int(steps);
+    json_writer.Key("13");
+    json_writer.Int(scaleStepWidth);
+    json_writer.EndObject();
 
-    json::Writer::Write(o, ss);
-    return ss.str();
+    wxLogDebug("======= mmHomePagePanel::displayIncomeVsExpenses =======");
+    wxLogDebug("RapidJson\n%s", json_buffer.GetString());
+
+    return json_buffer.GetString();
 }
 
 //* Assets *//
 const wxString mmHomePagePanel::displayAssets(double& tBalance)
 {
-    json::Object o;
-    std::wstringstream ss;
-
     double asset_balance = Model_Asset::instance().balance();
     tBalance += asset_balance;
 
-    o[L"NAME"] = json::String(_("Assets").ToStdWstring());
-    o[L"VALUE"] = json::String(Model_Currency::toCurrency(asset_balance).ToStdWstring());
+    StringBuffer json_buffer;
+    PrettyWriter<StringBuffer> json_writer(json_buffer);
+    json_writer.StartObject();
+    json_writer.Key("NAME");
+    json_writer.String(_("Assets").c_str());
+    json_writer.Key("VALUE");
+    json_writer.String(Model_Currency::toCurrency(asset_balance).c_str());
+    json_writer.EndObject();
 
-    json::Writer::Write(o, ss);
-    return ss.str();
+    wxLogDebug("======= mmHomePagePanel::displayAssets =======");
+    wxLogDebug("RapidJson\n%s", json_buffer.GetString());
+
+    return json_buffer.GetString();
 }
 
 const wxString mmHomePagePanel::getStatWidget()
 {
-    json::Object o;
-    std::wstringstream ss;
+    StringBuffer json_buffer;
+    PrettyWriter<StringBuffer> json_writer(json_buffer);
+    json_writer.StartObject();
 
-    o[L"NAME"] = json::String(_("Transaction Statistics").ToStdWstring());
+    json_writer.Key("NAME");
+    json_writer.String(_("Transaction Statistics").c_str());
+
     if (this->countFollowUp_ > 0)
     {
-        o[json::String(_("Follow Up On Transactions: ").ToStdWstring())] = json::Number(this->countFollowUp_);
+        json_writer.Key(_("Follow Up On Transactions: ").c_str());
+        json_writer.Double(this->countFollowUp_);
     }
-    o[json::String(_("Total Transactions: ").ToStdWstring())] = json::Number(this->total_transactions_);
 
-    json::Writer::Write(o, ss);
-    return ss.str();
+    json_writer.Key(_("Total Transactions: ").c_str());
+    json_writer.Int(this->total_transactions_);
+    json_writer.EndObject();
+
+    wxLogDebug("======= mmHomePagePanel::getStatWidget =======");
+    wxLogDebug("RapidJson\n%s", json_buffer.GetString());
+
+    return json_buffer.GetString();
 }
 
 const wxString mmHomePagePanel::displayGrandTotals(double& tBalance)
 {
-    json::Object o;
-    std::wstringstream ss;
-
     const wxString tBalanceStr = Model_Currency::toCurrency(tBalance);
 
-    o[L"NAME"] = json::String(_("Grand Total:").ToStdWstring());
-    o[L"VALUE"] = json::String(tBalanceStr.ToStdWstring());
+    StringBuffer json_buffer;
+    PrettyWriter<StringBuffer> json_writer(json_buffer);
+    json_writer.StartObject();
+    json_writer.Key("NAME");
+    json_writer.String(_("Grand Total:").c_str());
+    json_writer.Key("VALUE");
+    json_writer.String(tBalanceStr.c_str());
+    json_writer.EndObject();
 
-    json::Writer::Write(o, ss);
-    return ss.str();
+    wxLogDebug("======= mmHomePagePanel::displayGrandTotals =======");
+    wxLogDebug("RapidJson\n%s", json_buffer.GetString());
+
+    return json_buffer.GetString();
 }
 
 void mmHomePagePanel::OnLinkClicked(wxWebViewEvent& event)
@@ -852,49 +903,114 @@ void mmHomePagePanel::OnLinkClicked(wxWebViewEvent& event)
     if (url.Contains("#"))
     {
         wxString name = url.AfterLast('#');
-        wxLogDebug("%s", name);
 
-        //Read data from ini DB as JSON then convert it to json::Object
+        //Convert the JSON string from database to a json object
         wxString str = Model_Infotable::instance().GetStringInfo("HOME_PAGE_STATUS", "");
-        if (!(str.StartsWith("{") && str.EndsWith("}"))) str = "{}";
-        std::wstringstream ss;
-        ss << str.ToStdWstring();
-        json::Object o;
-        json::Reader::Read(o, ss);
 
-        if (name == "TOP_CATEGORIES") {
-            bool entry = !json::Boolean(o[L"TOP_CATEGORIES"]);
-            o[L"TOP_CATEGORIES"] = json::Boolean(entry);
+        wxLogDebug("======= mmHomePagePanel::OnLinkClicked =======");
+        wxLogDebug("Name = %s", name);
+
+        Document json_doc;
+        if (json_doc.Parse(str.c_str()).HasParseError())
+            return;
+
+        Document::AllocatorType& json_allocator = json_doc.GetAllocator();
+        wxLogDebug("RapidJson Input\n%s", JSON_PrettyFormated(json_doc));
+
+        if (name == "TOP_CATEGORIES")
+        {
+            if (json_doc.HasMember("TOP_CATEGORIES") && json_doc["TOP_CATEGORIES"].IsBool())
+            {
+                bool entry = !json_doc["TOP_CATEGORIES"].GetBool();
+                json_doc["TOP_CATEGORIES"] = entry;
+            }
+            else
+            {
+                json_doc.AddMember("TOP_CATEGORIES", true, json_allocator);
+            }
         }
-        else if (name == "INVEST") {
-            bool entry = !json::Boolean(o[L"INVEST"]);
-            o[L"INVEST"] = json::Boolean(entry);
+        else if (name == "INVEST")
+        {
+            if (json_doc.HasMember("INVEST") && json_doc["INVEST"].IsBool())
+            {
+                bool entry = !json_doc["INVEST"].GetBool();
+                json_doc["INVEST"] = entry;
+            }
+            else
+            {
+                json_doc.AddMember("INVEST", true, json_allocator);
+            }
         }
-        else if (name == "ACCOUNTS_INFO") {
-            bool entry = !json::Boolean(o[L"ACCOUNTS_INFO"]);
-            o[L"ACCOUNTS_INFO"] = json::Boolean(entry);
+        else if (name == "ACCOUNTS_INFO")
+        {
+            if (json_doc.HasMember("ACCOUNTS_INFO") && json_doc["ACCOUNTS_INFO"].IsBool())
+            {
+                bool entry = !json_doc["ACCOUNTS_INFO"].GetBool();
+                json_doc["ACCOUNTS_INFO"] = entry;
+            }
+            else
+            {
+                json_doc.AddMember("ACCOUNTS_INFO", true, json_allocator);
+            }
         }
-        else if (name == "CARD_ACCOUNTS_INFO") {
-            bool entry = !json::Boolean(o[L"CARD_ACCOUNTS_INFO"]);
-            o[L"CARD_ACCOUNTS_INFO"] = json::Boolean(entry);
+        else if (name == "CARD_ACCOUNTS_INFO")
+        {
+            if (json_doc.HasMember("CARD_ACCOUNTS_INFO") && json_doc["CARD_ACCOUNTS_INFO"].IsBool())
+            {
+                bool entry = !json_doc["CARD_ACCOUNTS_INFO"].GetBool();
+                json_doc["CARD_ACCOUNTS_INFO"] = entry;
+            }
+            else
+            {
+                json_doc.AddMember("CARD_ACCOUNTS_INFO", true, json_allocator);
+            }
         }
-        else if (name == "CASH_ACCOUNTS_INFO") {
-            bool entry = !json::Boolean(o[L"CASH_ACCOUNTS_INFO"]);
-            o[L"CASH_ACCOUNTS_INFO"] = json::Boolean(entry);
+        else if (name == "CASH_ACCOUNTS_INFO")
+        {
+            if (json_doc.HasMember("CASH_ACCOUNTS_INFO") && json_doc["CASH_ACCOUNTS_INFO"].IsBool())
+            {
+                bool entry = !json_doc["CASH_ACCOUNTS_INFO"].GetBool();
+                json_doc["CASH_ACCOUNTS_INFO"] = entry;
+            }
+            else
+            {
+                json_doc.AddMember("CASH_ACCOUNTS_INFO", true, json_allocator);
+            }
         }
-        else if (name == "LOAN_ACCOUNTS_INFO") {
-            bool entry = !json::Boolean(o[L"LOAN_ACCOUNTS_INFO"]);
-            o[L"LOAN_ACCOUNTS_INFO"] = json::Boolean(entry);
+        else if (name == "LOAN_ACCOUNTS_INFO")
+        {
+            if (json_doc.HasMember("LOAN_ACCOUNTS_INFO") && json_doc["LOAN_ACCOUNTS_INFO"].IsBool())
+            {
+                bool entry = !json_doc["LOAN_ACCOUNTS_INFO"].GetBool();
+                json_doc["LOAN_ACCOUNTS_INFO"] = entry;
+            }
+            else
+            {
+                json_doc.AddMember("LOAN_ACCOUNTS_INFO", true, json_allocator);
+            }
         }
-        else if (name == "TERM_ACCOUNTS_INFO") {
-            bool entry = !json::Boolean(o[L"TERM_ACCOUNTS_INFO"]);
-            o[L"TERM_ACCOUNTS_INFO"] = json::Boolean(entry);
+        else if (name == "TERM_ACCOUNTS_INFO")
+        {
+            if (json_doc.HasMember("TERM_ACCOUNTS_INFO") && json_doc["TERM_ACCOUNTS_INFO"].IsBool())
+            {
+                bool entry = !json_doc["TERM_ACCOUNTS_INFO"].GetBool();
+                json_doc["TERM_ACCOUNTS_INFO"] = entry;
+            }
+            else
+            {
+                json_doc.AddMember("TERM_ACCOUNTS_INFO", true, json_allocator);
+            }
+        }
+        else if (name == "CRYPTO_WALLETS_INFO") {
+            if (json_doc.HasMember("CRYPTO_WALLETS_INFO") && json_doc["CRYPTO_WALLETS_INFO"].IsBool()) {
+                bool entry = !json_doc["CRYPTO_WALLETS_INFO"].GetBool();
+                json_doc["CRYPTO_WALLETS_INFO"] = entry;
+            }
         }
 
-        std::wstringstream wss;
-        json::Writer::Write(o, wss);
-        wxLogDebug("%s", wss.str());
-        wxLogDebug("==========================================");
-        Model_Infotable::instance().Set("HOME_PAGE_STATUS", wss.str());
+        wxLogDebug("Saving updated RapidJson\n%s", JSON_PrettyFormated(json_doc));
+        wxLogDebug("======= mmHomePagePanel::OnLinkClicked =======");
+
+        Model_Infotable::instance().Set("HOME_PAGE_STATUS", JSON_PrettyFormated(json_doc));
     }
 }

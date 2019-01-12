@@ -21,8 +21,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #define MM_EX_SPLITDETAILSDIALOG_H_
 
 #include "defs.h"
-#include "mmtextctrl.h"
-#include "model/Model_Splittransaction.h"
+#include "mmTextCtrl.h"
+#include "Model_Splittransaction.h"
 
 #ifndef wxCLOSE_BOX
 #define wxCLOSE_BOX 0x1000
@@ -56,16 +56,16 @@ private:
 
     void OnButtonOKClick( wxCommandEvent& event );
     void onTextEntered(wxCommandEvent& event);
-    void OnCancel(wxCommandEvent& /*event*/);
+    void OnCancel(wxCommandEvent& WXUNUSED(event));
 
     Split split_;
     Model_Currency::Data *m_currency;
     int transType_;
-    int accountID_;
 
-    wxChoice* choiceType_;
-    mmTextCtrl* textAmount_;
-    wxButton* bCategory_;
+    wxChoice* m_choice_type;
+    mmTextCtrl* m_text_mount;
+    wxButton* m_bcategory;
+    wxButton* m_cancel_button;
 };
 
 #endif

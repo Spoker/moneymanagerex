@@ -15,20 +15,26 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ********************************************************/
-
-#ifndef FILTERTRANSDIALOG_H_
-#define FILTERTRANSDIALOG_H_
+#pragma once
 
 #if defined(__GNUG__) && !defined(__APPLE__)
 #pragma interface "filtertransdialog.cpp"
 #endif
 
-#include "reports/mmDateRange.h"
-#include "reports/htmlbuilder.h"
-
 #include <wx/dialog.h>
-#include "mmtextctrl.h"
+#include "Model_Checking.h"
+#include "Model_Billsdeposits.h"
+#include "reports/mmDateRange.h"
+#include <wx/bmpbuttn.h>
 
+class mmTextCtrl;
+class mmCustomData;
+class mmHTMLBuilder;
+class wxCheckBox;
+class wxChoice;
+class wxDatePickerCtrl;
+class wxComboBox;
+class wxRadioBox;
 
 class mmFilterTransactionsDialog: public wxDialog
 {
@@ -38,97 +44,52 @@ class mmFilterTransactionsDialog: public wxDialog
 public:
     /// Constructors
     mmFilterTransactionsDialog();
-    mmFilterTransactionsDialog(wxWindow* parent);
+    ~mmFilterTransactionsDialog();
+    mmFilterTransactionsDialog(wxWindow* parent, int account_id);
 
     virtual int ShowModal();
 
-    bool checkAll(const Model_Checking::Data &tran, int accountID, const std::map<int, Model_Splittransaction::Data_Set>& split);
-    bool checkAll(const Model_Billsdeposits::Data &tran, const std::map<int, Model_Budgetsplittransaction::Data_Set>& split);
+    bool checkAll(const Model_Checking::Full_Data &tran, int accountID);
+    bool checkAll(const Model_Billsdeposits::Full_Data &tran);
     void getDescription(mmHTMLBuilder &hb);
-    bool somethingSelected();
+    bool SomethingSelected();
+    void ResetFilterStatus();
     void setAccountToolTip(const wxString& tip) const;
-    bool getStatusCheckBox()
-    {
-        return statusCheckBox_->IsChecked();
-    }
-    bool getAccountCheckBox()
-    {
-        return accountCheckBox_->GetValue();
-    }
-    int getAccountID()
-    {
-        return refAccountID_;
-    }
-    bool getCategoryCheckBox()
-    {
-        return categoryCheckBox_->IsChecked();
-    }
-    bool getSimilarStatus() { return bSimilarCategoryStatus_; }
-    int getCategId() { return categID_; }
-    int getSubCategId() { return subcategID_; }
+    bool getStatusCheckBox();
+    bool getAccountCheckBox();
+    int getAccountID();
+    bool getCategoryCheckBox();
+  
+    bool getSimilarStatus();
+    int getCategId();
+    int getSubCategId();
 
 private:
+    void getFilterStatus();
     void BuildPayeeList();
 
-    bool getDateRangeCheckBox()
-    {
-        return dateRangeCheckBox_->GetValue();
-    }
-    bool getAmountRangeCheckBoxMin()
-    {
-        return amountRangeCheckBox_->GetValue() && !amountMinEdit_->GetValue().IsEmpty();
-    }
-    bool getAmountRangeCheckBoxMax()
-    {
-        return amountRangeCheckBox_->GetValue() && !amountMaxEdit_->GetValue().IsEmpty();
-    }
-    double getAmountMax();
-    double getAmountMin();
+    bool getDateRangeCheckBox();
+    bool getAmountRangeCheckBox();
 
-    template<class MODEL, class DATA = typename MODEL::DATA>
-    bool checkPayee(const DATA &tran);
-    template<class MODEL, class DATA = typename MODEL::Data>
-    bool checkCategory(const DATA& tran, const std::map<int, typename MODEL::Split_Data_Set>& splits);
+    template<class MODEL, class FULL_DATA = typename MODEL::Full_Data>
+    bool checkPayee(const FULL_DATA &tran);
+    template<class MODEL, class FULL_DATA = typename MODEL::Full_Data>
+    bool checkCategory(const FULL_DATA &tran);
+    template<class MODEL, class FULL_DATA = typename MODEL::Full_Data>
+    bool checkAmount(const FULL_DATA &tran);
 
-    wxString getStatus() const;
-
-    wxString getNumber()
-    {
-        return transNumberEdit_->GetValue();
-    }
-    wxString getNotes()
-    {
-        return notesEdit_->GetValue();
-    }
+    wxString getNumber();
+    wxString getNotes();
 
 private:
-    void OnDateChanged(wxDateEvent& event);
     /// Returns true if Status string matches.
-    bool compareStatus(const wxString& itemStatus) const;
+    bool compareStatus(const wxString& itemStatus, const wxString& filterStatus) const;
 
-    bool getTypeCheckBox()
-    {
-        return typeCheckBox_->IsChecked();
-    }
-
+    bool getTypeCheckBox();
     bool allowType(const wxString& typeState, bool sameAccount) const;
-
-    bool getPayeeCheckBox()
-    {
-        return payeeCheckBox_->IsChecked();
-    }
-
-    bool getNumberCheckBox()
-    {
-        return transNumberCheckBox_->IsChecked();
-    }
-
-    bool getNotesCheckBox()
-    {
-        return notesCheckBox_->IsChecked();
-    }
-
-    void setPresettings(const wxString& view);
+    bool getPayeeCheckBox();
+    bool getNumberCheckBox();
+    bool getNotesCheckBox();
     void clearSettings();
 
     /// Creation
@@ -149,30 +110,32 @@ private:
 
     void OnButtonokClick(wxCommandEvent& event);
     void OnButtoncancelClick(wxCommandEvent& event);
-    void OnButtonSaveClick(wxCommandEvent& event);
+    void SaveSettings();
     void OnButtonClearClick(wxCommandEvent& event);
-    void OnSettingsSelected(wxCommandEvent& event);
-    void datePresetMenu(wxMouseEvent& event);
-    void datePresetMenuSelected(wxCommandEvent& event);
+    void OnMoreFields(wxCommandEvent& event);
     void OnPayeeUpdated(wxCommandEvent& event);
     void OnTextEntered(wxCommandEvent& event);
+    void OnDateRangeChanged(wxCommandEvent& event);
+    void OnSaveSettings(wxCommandEvent& event);
+    void OnSettingsSelected(wxCommandEvent& event);
 
     void OnCategs(wxCommandEvent& event);
-    wxString to_json();
+    wxString to_json(bool i18n = false);
     void from_json(const wxString &data);
 
     wxString settings_string_;
     wxString prev_value_;
-    wxTextCtrl* m_settingLabel;
     wxCheckBox* accountCheckBox_;
     wxChoice* accountDropDown_;
-    wxCheckBox* dateRangeCheckBox_;
-    wxDatePickerCtrl* fromDateCtrl_;
-    wxDatePickerCtrl* toDateControl_;
+    wxCheckBox* m_dateRangeCheckBox;
+    wxDatePickerCtrl* m_fromDateCtrl;
+    wxDatePickerCtrl* m_toDateControl;
     wxCheckBox* payeeCheckBox_;
     wxComboBox* cbPayee_;
     wxCheckBox* categoryCheckBox_;
     wxButton* btnCategory_;
+    wxBitmapButton* m_btnSaveAs;
+    wxChoice* m_setting_name;
     wxCheckBox* similarCategCheckBox_;
     wxCheckBox* statusCheckBox_;
     wxChoice* choiceStatus_;
@@ -186,12 +149,12 @@ private:
     mmTextCtrl* amountMaxEdit_;
     wxCheckBox* notesCheckBox_;
     wxTextCtrl* notesEdit_;
-    wxRadioBox* m_radio_box_;
     wxCheckBox* transNumberCheckBox_;
     wxTextCtrl* transNumberEdit_;
+    wxChoice* m_date_ranges;
+
     wxString m_begin_date;
     wxString m_end_date;
-
     int categID_;
     int subcategID_;
     bool bSimilarCategoryStatus_;
@@ -199,7 +162,19 @@ private:
     wxString payeeStr_;
     int refAccountID_;
     wxString refAccountStr_;
-};
+    double m_min_amount;
+    double m_max_amount;
+    wxString m_filterStatus;
+    int m_settings_id;
+    void SetSettingsID(int id) { m_settings_id = id; }
+    int GetSettingsID() { return m_settings_id; }
 
-#endif
-// FILTERTRANSDIALOG_H_
+    mmCustomData* m_custom_fields;
+    std::vector<mmDateRange*> m_all_date_ranges;
+
+    enum RepPanel
+    {
+        ID_CHOICE_DATE_RANGE = wxID_HIGHEST + 1,
+    };
+
+};

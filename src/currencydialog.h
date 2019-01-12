@@ -20,14 +20,17 @@
 #ifndef MM_EX_CURRENCYDIALOG_H_
 #define MM_EX_CURRENCYDIALOG_H_
 
-#include "model/Model_Currency.h"
-
+#include <wx/dialog.h>
+#include "Model_Currency.h"
+class wxCommandEvent;
 class mmTextCtrl;
+class wxChoice;
+class wxStaticText;
+class wxCheckBox;
 
 enum
 {
-    ID_DIALOG_CURRENCY = wxID_HIGHEST + 400,
-    ID_DIALOG_CURRENCY_RATE,
+    ID_DIALOG_CURRENCY = wxID_HIGHEST + 400
 };
 
 class mmCurrencyDialog : public wxDialog
@@ -38,7 +41,7 @@ class mmCurrencyDialog : public wxDialog
 public:
     mmCurrencyDialog();
     ~mmCurrencyDialog();
-    mmCurrencyDialog(wxWindow* parent, Model_Currency::Data * currency);
+    mmCurrencyDialog(wxWindow* parent, const Model_Currency::Data * currency);
 
     int getCurrencyID() { return m_currency->CURRENCYID; };
 
@@ -55,22 +58,21 @@ private:
     void OnOk(wxCommandEvent& event);
     void OnCancel(wxCommandEvent& event);
     void OnTextChanged(wxCommandEvent& event);
-    void OnTextEntered(wxCommandEvent& event);
 
     Model_Currency::Data* m_currency;
     int m_scale;
 
+private:
+    wxChoice* m_currencyType;
     mmTextCtrl* m_currencyName;
-    wxStaticText* sampleText_;
+    wxStaticText* m_sample_text;
     mmTextCtrl* m_currencySymbol;
-    mmTextCtrl* baseConvRate_;
     wxTextCtrl* pfxTx_;
     wxTextCtrl* sfxTx_;
     wxTextCtrl* decTx_;
     wxTextCtrl* grpTx_;
-    wxTextCtrl* unitTx_;
-    wxTextCtrl* centTx_;
     wxTextCtrl* scaleTx_;
+    wxCheckBox* m_historic;
 
 };
 

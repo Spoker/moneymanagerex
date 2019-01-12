@@ -17,24 +17,16 @@
  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  ********************************************************/
 
-#ifdef __WXMSW__
-#define WIN32_LEAN_AND_MEAN
-#endif
-
 #include "webserver.h"
+#include <wx/thread.h>
 #include "defs.h"
 #include "platfdep.h"
 #include "paths.h"
 #include "mongoose/mongoose.h"
 #include "singleton.h"
-#include "model/Model_Setting.h"
-#include "model/Model_Report.h"
-#include "model/Model_Setting.h"
-#include "model/Model_Infotable.h"
-
-#include "cajun/json/elements.h"
-#include "cajun/json/reader.h"
-#include "cajun/json/writer.h"
+#include "Model_Setting.h"
+#include "Model_Report.h"
+#include "Model_Infotable.h"
 
 static struct mg_serve_http_opts s_http_server_opts;
 
@@ -44,28 +36,36 @@ static void handle_sql(struct mg_connection* nc, struct http_message* hm)
     mg_get_http_var(&hm->query_string, "query", query, sizeof(query));
     std::cout<<query<<std::endl;
 
-    json::Object result;
-    result[L"query"] = json::String(wxString(query).ToStdWstring());
-    //bool ret = Model_Report::instance().get_objects_from_sql(wxString(query), result); 
+    StringBuffer json_buffer;
+    PrettyWriter<StringBuffer> json_writer(json_buffer);
+
+    json_writer.StartObject();
+
+    json_writer.Key("query");
+    json_writer.String(wxString(query).c_str());
+
+    Model_Report::instance().get_objects_from_sql(wxString(query), json_writer);
 
     for (const auto & r : Model_Setting::instance().all())
     {
-        result[r.SETTINGNAME.ToStdWstring()] = json::String(r.SETTINGVALUE.ToStdWstring());
+        json_writer.Key(r.SETTINGNAME.c_str());
+        json_writer.String(r.SETTINGVALUE.c_str());
     }
 
     for (const auto & r : Model_Infotable::instance().all())
     {
-        result[r.INFONAME.ToStdWstring()] = json::String(r.INFOVALUE.ToStdWstring());
+        json_writer.Key(r.INFONAME.c_str());
+        json_writer.String(r.INFOVALUE.c_str());
     }
-     
-    std::wstringstream ss;
-    json::Writer::Write(result, ss);
-    std::wstring str = ss.str();
-    std::cout<<str<<std::endl;
+    
+    json_writer.EndObject();
+
+    std::cout<<json_buffer.GetString()<<std::endl;
 
     mg_printf(nc, "HTTP/1.1 200 OK\r\n"
                 "Content-Type: application/json; charset=utf-8\r\n"
-                "Content-Length: %lu\r\n\r\n%ls", str.length(), str.c_str());
+                "Content-Length: %zu\r\n\r\n%s",
+                json_buffer.GetSize(), json_buffer.GetString());
 }
 
 static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) 
@@ -89,13 +89,15 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
     }
 }
 
-WebServerThread::WebServerThread(): wxThread()
+class WebServerThread : public wxThread
 {
-}
+public:
+    WebServerThread(): wxThread() {};
+    ~WebServerThread() {};
 
-WebServerThread::~WebServerThread()
-{
-}
+protected:
+    virtual ExitCode Entry();
+};
 
 wxThread::ExitCode WebServerThread::Entry()
 {
@@ -116,7 +118,7 @@ wxThread::ExitCode WebServerThread::Entry()
     }
     
     mg_set_protocol_http_websocket(nc);
-    std::string document_root(wxFileName(mmex::getReportIndex()).GetPath().c_str());
+    std::string document_root(wxFileName(mmex::getReportFullFileName("index")).GetPath().c_str());
     s_http_server_opts.document_root = document_root.c_str();
     s_http_server_opts.enable_directory_listing = "yes";
 

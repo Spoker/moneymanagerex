@@ -19,14 +19,10 @@
 
 #pragma once
 
-#include "util.h"
-#include <wx/listctrl.h>
-#include "wx/event.h"
-#include <wx/webview.h>
-#include <wx/webviewfshandler.h>
+#include <wx/panel.h>
+#include <wx/listctrl.h> // for wxLIST_AUTOSIZE
+#include <vector>
 //----------------------------------------------------------------------------
-
-class wxListItemAttr;
 
 struct PANEL_COLUMN
 {
@@ -58,6 +54,7 @@ public:
     wxString BuildPage(const wxString &title) const;
     int GetColumnWidthSetting(int column_number, int default_size = wxLIST_AUTOSIZE);
     void SetColumnWidthSetting(int column_number, int column_width);
+	std::vector<long> GetSelected();
 
 protected:
     void OnItemResize(wxListEvent& event);

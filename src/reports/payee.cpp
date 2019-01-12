@@ -18,10 +18,13 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include "payee.h"
 
-#include "htmlbuilder.h"
-#include "model/Model_Currency.h"
-#include "model/Model_Payee.h"
-#include "model/Model_Account.h"
+#include "reports/htmlbuilder.h"
+#include "option.h"
+#include "reports/mmDateRange.h"
+#include "Model_Currency.h"
+#include "Model_CurrencyHistory.h"
+#include "Model_Payee.h"
+#include "Model_Account.h"
 
 #include <algorithm>
 
@@ -36,9 +39,9 @@ mmReportPayeeExpenses::~mmReportPayeeExpenses()
 {
 }
 
-bool mmReportPayeeExpenses::has_date_range()
+int mmReportPayeeExpenses::report_parameters()
 {
-    return true;
+    return RepParams::DATE_RANGE | RepParams::CHART;
 }
 
 void  mmReportPayeeExpenses::RefreshData()
@@ -98,20 +101,23 @@ wxString mmReportPayeeExpenses::getHTMLText()
     hb.init();
     hb.addDivContainer();
     hb.addHeader(2, title());
+    hb.addDateNow();
     hb.DisplayDateHeading(m_date_range->start_date(), m_date_range->end_date(), m_date_range->is_with_date());
 
     hb.addDivRow();
     hb.addDivCol17_67();
     // Add the graph
-    hb.addDivCol25_50();
-    if (!valueList_.empty())
+    if (!valueList_.empty() && (getChartSelection() == 0))
+    {
+        hb.addDivCol25_50();
         hb.addPieChart(valueList_, "Withdrawal");
-    hb.endDiv();
+        hb.endDiv();
+    }
 
     hb.startSortTable();
     hb.startThead();
     hb.startTableRow();
-        hb.addTableHeaderCell(" ", false, false);
+        if (getChartSelection() == 0) hb.addTableHeaderCell(" ", false, false);
         hb.addTableHeaderCell(_("Payee"));
         hb.addTableHeaderCell(_("Incomes"), true);
         hb.addTableHeaderCell(_("Expenses"), true);
@@ -123,7 +129,7 @@ wxString mmReportPayeeExpenses::getHTMLText()
     for (const auto& entry : data_)
     {
         hb.startTableRow();
-        hb.addColorMarker(entry.color);
+        if (getChartSelection() == 0) hb.addColorMarker(entry.color);
         hb.addTableCell(entry.name);
         hb.addMoneyCell(entry.incomes);
         hb.addMoneyCell(entry.expenses);
@@ -137,7 +143,7 @@ wxString mmReportPayeeExpenses::getHTMLText()
     totals.push_back(positiveTotal_);
     totals.push_back(negativeTotal_);
     totals.push_back(positiveTotal_ + negativeTotal_);
-    hb.addTotalRow(_("Total:"), 5, totals);
+    hb.addTotalRow(_("Total:"), (getChartSelection() == 0) ? 5 : 4, totals);
     hb.endTfoot();
 
     hb.endTable();
@@ -146,26 +152,17 @@ wxString mmReportPayeeExpenses::getHTMLText()
     hb.endDiv();
     hb.end();
 
-    Model_Report::outputReportFile(hb.getHTMLText());
-    return "";
+    return hb.getHTMLText();
 }
 
 void mmReportPayeeExpenses::getPayeeStats(std::map<int, std::pair<double, double> > &payeeStats
                                           , mmDateRange* date_range, bool ignoreFuture) const
 {
-    //Get base currency rates for all accounts
-    std::map<int, double> acc_conv_rates;
-    for (const auto& account: Model_Account::instance().all())
-    {
-        Model_Currency::Data* currency = Model_Account::currency(account);
-        acc_conv_rates[account.ACCOUNTID] = currency->BASECONVRATE;
-    }
-
+// FIXME: do not ignore ignoreFuture param
     const auto &transactions = Model_Checking::instance().find(
         Model_Checking::STATUS(Model_Checking::VOID_, NOT_EQUAL)
-        , Model_Checking::TRANSDATE(m_date_range->start_date(), GREATER_OR_EQUAL)
-        , Model_Checking::TRANSDATE(m_date_range->end_date(), LESS_OR_EQUAL));
-    const wxDateTime today = m_date_range->today();
+        , Model_Checking::TRANSDATE(date_range->start_date(), GREATER_OR_EQUAL)
+        , Model_Checking::TRANSDATE(date_range->end_date(), LESS_OR_EQUAL));
     const auto all_splits = Model_Splittransaction::instance().get_all();
     for (const auto& trx: transactions)
     {
@@ -175,7 +172,7 @@ void mmReportPayeeExpenses::getPayeeStats(std::map<int, std::pair<double, double
         if (Model_Checking::foreignTransactionAsTransfer(trx))
             continue;
 
-        double convRate = acc_conv_rates[trx.ACCOUNTID];
+        const double convRate = Model_CurrencyHistory::getDayRate(Model_Account::instance().get(trx.ACCOUNTID)->CURRENCYID, trx.TRANSDATE);
 
         Model_Splittransaction::Data_Set splits;
         if (all_splits.count(trx.id())) splits = all_splits.at(trx.id());

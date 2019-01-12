@@ -24,8 +24,15 @@
 #include "option.h"
 #include <wx/numformatter.h>
 
+const std::vector<std::pair<Model_Currency::CURRTYPE, wxString> > Model_Currency::CURRTYPE_CHOICES =
+{
+    { Model_Currency::FIAT, wxString(wxTRANSLATE("Fiat")) },
+    { Model_Currency::CRYPTO, wxString(wxTRANSLATE("Crypto")) }
+};
+
+
 Model_Currency::Model_Currency()
-: Model<DB_Table_CURRENCYFORMATS_V1>()
+: Model<DB_Table_CURRENCYFORMATS>()
 {
 }
 
@@ -69,6 +76,17 @@ wxArrayString Model_Currency::all_currency_symbols()
     return c;
 }
 
+wxArrayString Model_Currency::all_currency_types()
+{
+    static wxArrayString types;
+    if (types.empty())
+    {
+        for (const auto& item : CURRTYPE_CHOICES)
+            types.Add(item.second);
+    }
+    return types;
+}
+
 // Getter
 Model_Currency::Data* Model_Currency::GetBaseCurrency()
 {
@@ -77,15 +95,15 @@ Model_Currency::Data* Model_Currency::GetBaseCurrency()
     return currency;
 }
 
-void Model_Currency::ResetBaseConversionRates()
+bool Model_Currency::GetBaseCurrencySymbol(wxString& base_currency_symbol)
 {
-    Model_Currency::instance().Savepoint();
-    for (auto currency : Model_Currency::instance().all())
+    const auto base_currency = GetBaseCurrency();
+    if (base_currency)
     {
-        currency.BASECONVRATE = 1;
-        Model_Currency::instance().save(&currency);
+        base_currency_symbol = base_currency->CURRENCY_SYMBOL;
+        return true;
     }
-    Model_Currency::instance().ReleaseSavepoint();
+    return false;
 }
 
 Model_Currency::Data* Model_Currency::GetCurrencyRecord(const wxString& currency_symbol)
@@ -94,7 +112,8 @@ Model_Currency::Data* Model_Currency::GetCurrencyRecord(const wxString& currency
     if (record) return record;
 
     Model_Currency::Data_Set items = Model_Currency::instance().find(CURRENCY_SYMBOL(currency_symbol));
-    if (items.empty()) record = this->get(items[0].id(), this->db_);
+    if (!items.empty())
+        record = this->get(items[0].id(), this->db_);
 
     return record;
 }
@@ -138,6 +157,14 @@ bool Model_Currency::remove(int id)
     return this->remove(id, db_);
 }
 
+/** Return the description of the choice type */
+wxString Model_Currency::currtype_desc(const int CurrTypeEnum)
+{
+    const auto& item = CURRTYPE_CHOICES[CurrTypeEnum];
+    wxString reftype_desc = item.second;
+    return reftype_desc;
+}
+
 wxString Model_Currency::toCurrency(double value, const Data* currency, int precision)
 {
     precision = precision >= 0 ? precision : (currency ? log10(currency->SCALE) : 2);
@@ -150,64 +177,57 @@ wxString Model_Currency::toCurrency(double value, const Data* currency, int prec
     return d2s;
 }
 
-wxString Model_Currency::os_group_separator()
-{
-    wxString sys_thousand_separator = " ";
-    wxChar sep = ' ';
-    if (wxNumberFormatter::GetThousandsSeparatorIfUsed(&sep))
-        sys_thousand_separator = wxString::Format("%c", sep);
-    return sys_thousand_separator;
-}
-
 wxString Model_Currency::toStringNoFormatting(double value, const Data* currency, int precision)
 {
     precision = (precision >= 0 ? precision : (currency ? log10(currency->SCALE) : 2));
-    int style = wxNumberFormatter::Style_None;
-    wxString s = wxNumberFormatter::ToString(value, precision, style);
-    if (s == "-0.00") s = "0.00";
-    else if (s == "-0.0") s = "0.0";
+    wxString s = wxString::FromCDouble(value, precision);
+
+    // remove minus from -0 or -0.0000 that comes from printf("%.Nf")
+    wxRegEx re ("^-(?=0(\\.0+)?$)", wxRE_ADVANCED);
+    re.Replace(&s, wxEmptyString);
     return s;
 }
 wxString Model_Currency::toString(double value, const Data* currency, int precision)
 {
-    precision = (precision >= 0 ? precision : (currency ? log10(currency->SCALE) : 2));
-    int style = wxNumberFormatter::Style_WithThousandsSep;
-    wxString s = wxNumberFormatter::ToString(value, precision, style);
-    if (s == "-0.00") s = "0.00";
-    else if (s == "-0.0") s = "0.0";
-    if (currency)
+    wxString sep = currency ? currency->DECIMAL_POINT : ".",
+        s = Model_Currency::toStringNoFormatting(value, currency, precision);
+
+    if (sep!=".") // protect decimal point
     {
-        s.Replace(os_group_separator(), "\t");
-        s.Replace(wxNumberFormatter::GetDecimalSeparator(), "\x05");
-        s.Replace("\t", currency->GROUP_SEPARATOR);
-        s.Replace("\x05", currency->DECIMAL_POINT);
+        sep="\t";
+        s.Replace(".", sep);
     }
+
+    // add proper group separator
+    wxRegEx re ("(\\d)(?=(\\d{3})+[" + sep + "$])", wxRE_ADVANCED);
+    re.Replace(&s, "\\1" + (currency ? currency->GROUP_SEPARATOR : ","));
+
+    if (sep!=".") s.Replace(sep, currency->DECIMAL_POINT);
     return s;
 }
 
 const wxString Model_Currency::fromString2Default(const wxString &s, const Data* currency)
 {
     wxString str = s;
-    const Data* c = currency ? currency : Model_Currency::GetBaseCurrency();;
+    const auto bc = Model_Currency::GetBaseCurrency();
+    const Data* c = currency ? currency : bc;
 
-    if (!c->GROUP_SEPARATOR.empty())
-        str.Replace(c->GROUP_SEPARATOR, "");
-    if (!c->DECIMAL_POINT.empty())
-        str.Replace(c->DECIMAL_POINT, wxNumberFormatter::GetDecimalSeparator());
+    if(c)
+    {
+        if (!c->GROUP_SEPARATOR.empty())
+            str.Replace(c->GROUP_SEPARATOR, wxEmptyString);
+        if (!c->DECIMAL_POINT.empty())
+            str.Replace(c->DECIMAL_POINT, wxS("."));
 
-    wxRegEx pattern(R"([^0-9.,+-\/\*\(\)])");
-    pattern.ReplaceAll(&str, "");
-    //wxLogDebug("%s = %s", s, str);
-    
+        wxRegEx pattern(R"([^0-9.+-/*()])");
+        pattern.ReplaceAll(&str, wxEmptyString);
+    }
     return str;
 }
 
 bool Model_Currency::fromString(wxString s, double& val, const Data* currency)
 {
-    bool done = true;
-    if (!wxNumberFormatter::FromString(fromString2Default(s, currency), &val))
-        done = false;
-    return done;
+    return fromString2Default(s, currency).ToCDouble(&val);
 }
 
 int Model_Currency::precision(const Data* r)
@@ -230,3 +250,7 @@ int Model_Currency::precision(int account_id)
     else return 2;
 }
 
+bool Model_Currency::BoolOf(int value)
+{
+    return value > 0 ? true : false;
+}

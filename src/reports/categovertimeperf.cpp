@@ -18,10 +18,12 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 //----------------------------------------------------------------------------
 #include "categovertimeperf.h"
-#include "htmlbuilder.h"
+#include "reports/htmlbuilder.h"
 #include "util.h"
+#include "option.h"
+#include "reports/mmDateRange.h"
+#include "Model_Category.h"
 #include <algorithm>
-#include "model/Model_Category.h"
 #include <map>
 
 #define CATEGORY_SORT_BY_NAME       1
@@ -156,7 +158,6 @@ wxString mmReportCategoryOverTimePerformance::getHTMLText()
     hb.endDiv();
     hb.end();
 
-    Model_Report::outputReportFile(hb.getHTMLText());
-    return "";
+    return hb.getHTMLText();
 }
 //----------------------------------------------------------------------------

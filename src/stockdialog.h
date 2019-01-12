@@ -19,12 +19,16 @@
 #ifndef MM_EX_STOCKDIALOG_H_
 #define MM_EX_STOCKDIALOG_H_
 
-#include "defs.h"
-#include "model/Model_Stock.h"
-
+#include <wx/dialog.h>
+#include "Model_Stock.h"
 class wxDatePickerCtrl;
 class mmTextCtrl;
 class mmGUIFrame;
+class wxListCtrl;
+class wxListEvent;
+class wxDateEvent;
+class wxStaticText;
+class wxBitmapButton;
 
 class mmStockDialog : public wxDialog
 {
@@ -62,7 +66,8 @@ private:
     void OnHistoryDeleteButton(wxCommandEvent& event);
     void OnListItemSelected(wxListEvent& event);
     void OnFocusChange(wxChildFocusEvent& event);
-    void OnTextEntered(wxCommandEvent& event);
+    void OnDateChanged(wxDateEvent& WXUNUSED(event));
+    void OnSharePriceChanged(wxCommandEvent& WXUNUSED(event));
 
     void CreateControls();
     void UpdateControls();
@@ -74,7 +79,8 @@ private:
     mmTextCtrl* m_stock_symbol_ctrl;
     wxDatePickerCtrl* m_purchase_date_ctrl;
     mmTextCtrl* m_num_shares_ctrl;
-    mmTextCtrl* m_purchase_price_ctrl;
+    mmTextCtrl* m_share_price_ctrl;
+    wxStaticText* m_share_price_txt;
     mmTextCtrl* m_notes_ctrl;
     mmTextCtrl* m_current_price_ctrl;
     wxDatePickerCtrl* m_current_date_ctrl;

@@ -43,7 +43,7 @@ const std::vector<std::pair<Model_Billsdeposits::STATUS_ENUM, wxString> > Model_
 };
 
 Model_Billsdeposits::Model_Billsdeposits()
-: Model<DB_Table_BILLSDEPOSITS_V1>()
+: Model<DB_Table_BILLSDEPOSITS>()
 , m_autoExecuteManual (false)
 , m_autoExecuteSilent (false)
 , m_requireExecution (false)
@@ -58,15 +58,23 @@ Model_Billsdeposits::~Model_Billsdeposits()
 
 wxArrayString Model_Billsdeposits::all_type()
 {
-    wxArrayString types;
-    for (const auto& item : TYPE_CHOICES) types.Add(item.second);
+    static wxArrayString types;
+    if (types.empty())
+    {
+        for (const auto& item : TYPE_CHOICES)
+            types.Add(item.second);
+    }
     return types;
 }
 
 wxArrayString Model_Billsdeposits::all_status()
 {
-    wxArrayString status;
-    for (const auto& item : STATUS_ENUM_CHOICES) status.Add(item.second);
+    static wxArrayString status;
+    if (status.empty())
+    {
+        for (const auto& item : STATUS_ENUM_CHOICES)
+            status.Add(item.second);
+    }
     return status;
 }
 
@@ -171,9 +179,7 @@ Model_Billsdeposits::STATUS_ENUM Model_Billsdeposits::status(const Data* r)
 
 wxString Model_Billsdeposits::toShortStatus(const wxString& fullStatus)
 {
-    wxString s = fullStatus.Left(1);
-    s.Replace("N", "");
-    return s;
+    return fullStatus.Left(1) == "N" ? "" : fullStatus.Left(1);
 }
 
 /**
@@ -187,14 +193,14 @@ bool Model_Billsdeposits::remove(int id)
     return this->remove(id, db_);
 }
 
-DB_Table_BILLSDEPOSITS_V1::STATUS Model_Billsdeposits::STATUS(STATUS_ENUM status, OP op)
+DB_Table_BILLSDEPOSITS::STATUS Model_Billsdeposits::STATUS(STATUS_ENUM status, OP op)
 {
-    return DB_Table_BILLSDEPOSITS_V1::STATUS(toShortStatus(all_status()[status]), op);
+    return DB_Table_BILLSDEPOSITS::STATUS(toShortStatus(all_status()[status]), op);
 }
 
-DB_Table_BILLSDEPOSITS_V1::TRANSCODE Model_Billsdeposits::TRANSCODE(TYPE type, OP op)
+DB_Table_BILLSDEPOSITS::TRANSCODE Model_Billsdeposits::TRANSCODE(TYPE type, OP op)
 {
-    return DB_Table_BILLSDEPOSITS_V1::TRANSCODE(all_type()[type], op);
+    return DB_Table_BILLSDEPOSITS::TRANSCODE(all_type()[type], op);
 }
 
 const Model_Budgetsplittransaction::Data_Set Model_Billsdeposits::splittransaction(const Data* r)
@@ -205,6 +211,11 @@ const Model_Budgetsplittransaction::Data_Set Model_Billsdeposits::splittransacti
 const Model_Budgetsplittransaction::Data_Set Model_Billsdeposits::splittransaction(const Data& r)
 {
     return Model_Budgetsplittransaction::instance().find(Model_Budgetsplittransaction::TRANSID(r.BDID));
+}
+
+bool Model_Billsdeposits::Full_Data::has_split() const
+{
+    return !this->m_splits.empty();
 }
 
 void Model_Billsdeposits::decode_fields(const Data& q1)
@@ -441,10 +452,10 @@ Model_Billsdeposits::Full_Data::Full_Data()
 
 Model_Billsdeposits::Full_Data::Full_Data(const Data& r) : Data(r)
 {
-    m_bill_splits = splittransaction(r);
-    if (!m_bill_splits.empty())
+    m_splits = splittransaction(r);
+    if (!m_splits.empty())
     {
-        for (const auto& entry : m_bill_splits)
+        for (const auto& entry : m_splits)
             CATEGNAME += (CATEGNAME.empty() ? " * " : ", ")
             + Model_Category::full_name(entry.CATEGID, entry.SUBCATEGID);
     }

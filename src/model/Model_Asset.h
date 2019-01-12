@@ -20,14 +20,14 @@
 #define MODEL_ASSET_H
 
 #include "Model.h"
-#include "db/DB_Table_Assets_V1.h"
+#include "Table_Assets.h"
 #include "Model_Currency.h" // detect base currency
 
-class Model_Asset : public Model<DB_Table_ASSETS_V1>
+class Model_Asset : public Model<DB_Table_ASSETS>
 {
 public:
-    enum RATE { RATE_NONE = 0, RATE_APPRECIATE, RATE_DEPRECIATE };
-    enum TYPE { TYPE_PROPERTY = 0, TYPE_AUTO, TYPE_HOUSE, TYPE_ART, TYPE_JEWELLERY, TYPE_CASH, TYPE_OTHER };
+    enum RATE { RATE_NONE = 0, RATE_APPRECIATE, RATE_DEPRECIATE, RATE_UNKNOWN = -1 };
+    enum TYPE { TYPE_PROPERTY = 0, TYPE_AUTO, TYPE_HOUSE, TYPE_ART, TYPE_JEWELLERY, TYPE_CASH, TYPE_OTHER, TYPE_UNKNOWN = -1 };
 
 public:
     static const std::vector<std::pair<RATE, wxString> > RATE_CHOICES;
@@ -53,8 +53,8 @@ public:
     static Model_Asset& instance();
 
 public:
-    static DB_Table_ASSETS_V1::ASSETTYPE ASSETTYPE(TYPE type, OP op = EQUAL);
-    static DB_Table_ASSETS_V1::STARTDATE STARTDATE(const wxDate& date, OP op = EQUAL);
+    static DB_Table_ASSETS::ASSETTYPE ASSETTYPE(TYPE type, OP op = EQUAL);
+    static DB_Table_ASSETS::STARTDATE STARTDATE(const wxDate& date, OP op = EQUAL);
     
 public:
     static wxArrayString all_rate();

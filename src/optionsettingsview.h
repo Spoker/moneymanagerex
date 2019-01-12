@@ -33,7 +33,7 @@ public:
         , const wxPoint &pos = wxDefaultPosition
         , const wxSize &size = wxDefaultSize
         , long style = wxTAB_TRAVERSAL
-        , const wxString &name = wxPanelNameStr);
+        , const wxString &name = "OptionSettingsView");
 
     ~OptionSettingsView();
 
@@ -62,6 +62,7 @@ private:
     wxCheckBox* m_budget_include_transfers;
     wxCheckBox* m_budget_setup_without_summary;
     wxCheckBox* m_budget_summary_without_category;
+    wxSpinCtrl* m_budget_days_offset;
     wxCheckBox* m_ignore_future_transactions;
 
     enum

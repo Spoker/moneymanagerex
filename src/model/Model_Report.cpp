@@ -19,12 +19,15 @@
 #include "Model_Report.h"
 #include "constants.h"
 #include "paths.h"
+#include "option.h"
 #include "platfdep.h"
 #include "attachmentdialog.h"
 #include "reports/htmlbuilder.h"
-#include "model/Model_Setting.h"
-#include "LuaGlue/LuaGlue.h"
+#include "reports/reportbase.h"
+#include "Model_Setting.h"
+#include <LuaGlue/LuaGlue.h>
 #include "sqlite3.h"
+#include "mmreportspanel.h"
 
 #if defined (__WXMSW__)
     #include <wx/msw/registry.h>
@@ -46,7 +49,7 @@ public:
     }
 };
 
-Model_Report::Model_Report(): Model<DB_Table_REPORT_V1>()
+Model_Report::Model_Report(): Model<DB_Table_REPORT>()
 {
 }
 
@@ -74,7 +77,7 @@ Model_Report& Model_Report::instance(wxSQLite3Database* db)
     return ins;
 }
 
-bool Model_Report::get_objects_from_sql(const wxString& query, json::Object& o)
+bool Model_Report::get_objects_from_sql(const wxString& query, PrettyWriter<StringBuffer>& json_writer)
 {
     wxSQLite3Statement stmt;
     try
@@ -82,24 +85,28 @@ bool Model_Report::get_objects_from_sql(const wxString& query, json::Object& o)
         stmt = this->db_->PrepareStatement(query);
         if (!stmt.IsReadOnly())
         {
-            o[L"msg"] = json::String(L"the sql is not readonly");
+            json_writer.Key("msg");
+            json_writer.String("the sql is not readonly");
             return false;
         }
     }
     catch (const wxSQLite3Exception& e)
     {
-        o[L"msg"] = json::String(e.GetMessage().ToStdWstring());
+        json_writer.Key("msg");
+        json_writer.String(e.GetMessage().c_str());
         return false;
     }
 
     try
     {
-        json::Array results;
+        json_writer.Key("results");
+        json_writer.StartArray();
+
         wxSQLite3ResultSet q = stmt.ExecuteQuery();
         int columns = q.GetColumnCount();
         while (q.NextRow())
         {
-            json::Object r;
+            json_writer.StartObject();
 
             for (int i = 0; i < columns; ++i)
             {
@@ -108,25 +115,30 @@ bool Model_Report::get_objects_from_sql(const wxString& query, json::Object& o)
                 switch (q.GetColumnType(i))
                 {
                     case WXSQLITE_INTEGER:
-                        r[column_name.ToStdWstring()] = json::Number(q.GetInt(i));
+                        json_writer.Key(column_name.c_str());
+                        json_writer.Int(q.GetInt(i));
                         break;
                     case WXSQLITE_FLOAT:
-                        r[column_name.ToStdWstring()] = json::Number(q.GetDouble(i));
+                        json_writer.Key(column_name.c_str());
+                        json_writer.Double(q.GetDouble(i));
                         break;
                     default:
-                        r[column_name.ToStdWstring()] = json::String(q.GetString(i).ToStdWstring());
+                        json_writer.Key(column_name.c_str());
+                        json_writer.String(q.GetString(i).c_str());
                         break;
                 }
             }
 
-            results.Insert(r);
+            json_writer.EndObject();
         }
         q.Finalize();
-        o[L"results"] = results;
+
+        json_writer.EndArray();
     }
     catch (const wxSQLite3Exception& e)
     {
-        o[L"msg"] = json::String(e.GetMessage().ToStdWstring());
+        json_writer.Key("msg");
+        json_writer.String(e.GetMessage().c_str());
         return false;
     }
 
@@ -148,6 +160,95 @@ wxArrayString Model_Report::allGroupNames()
     return groups;
 }
 
+bool Model_Report::PrepareSQL(wxString& sql, std::map <wxString, wxString>& rep_params)
+{
+    sql.Trim();
+    if (sql.empty()) return false;
+    if (sql.Last() != ';') sql += ';';
+
+    int pos = sql.Lower().Find("&begin_date");
+    size_t len = wxString("&begin_date").size();
+
+    if (pos != wxNOT_FOUND)
+    {
+        wxDatePickerCtrl* start_date = (wxDatePickerCtrl*)
+            wxWindow::FindWindowById(mmReportsPanel::RepPanel::ID_CHOICE_START_DATE);
+        wxString date = wxDateTime::Today().FormatISODate();
+        if (start_date) {
+            date = start_date->GetValue().FormatISODate();
+        }
+
+        rep_params["begin_date"] = date;
+
+        while (pos != wxNOT_FOUND)
+        {
+            sql.replace(pos, len, date);
+            pos = sql.Lower().Find("&begin_date");
+        }
+    }
+
+    pos = sql.Lower().Find("&single_date");
+    len = wxString("&single_date").size();
+    if (pos != wxNOT_FOUND)
+    {
+        wxDatePickerCtrl* start_date = (wxDatePickerCtrl*)
+            wxWindow::FindWindowById(mmReportsPanel::RepPanel::ID_CHOICE_START_DATE);
+        wxString date = wxDateTime::Today().FormatISODate();
+        if (start_date) {
+            date = start_date->GetValue().FormatISODate();
+        }
+        rep_params["single_date"] = date;
+
+        while (pos != wxNOT_FOUND)
+        {
+            sql.replace(pos, len, date);
+            pos = sql.Lower().Find("&single_date");
+        }
+    }
+
+    pos = sql.Lower().Find("&end_date");
+    len = wxString("&end_date").size();
+    
+    if (pos != wxNOT_FOUND)
+    {
+        wxDatePickerCtrl* end_date = (wxDatePickerCtrl*)
+            wxWindow::FindWindowById(mmReportsPanel::RepPanel::ID_CHOICE_END_DATE);
+        wxString date = wxDateTime::Today().FormatISODate();
+        if (end_date) {
+            date = end_date->GetValue().FormatISODate();
+        }
+        rep_params["end_date"] = date;
+
+        while (pos != wxNOT_FOUND)
+        {
+            sql.replace(pos, len, date);
+            pos = sql.Lower().Find("&end_date");
+        }
+    }
+
+    pos = sql.Lower().Find("&budget_years");
+    len = wxString("&budget_years").size();
+    if (pos != wxNOT_FOUND)
+    {
+        wxChoice* years = (wxChoice*)
+            wxWindow::FindWindowById(mmReportsPanel::RepPanel::ID_CHOICE_DATE_RANGE);
+        wxString date = wxString::Format("%i", wxDate::Today().GetYear());
+        if (years) {
+            date = years->GetStringSelection();
+        }
+        rep_params["budget_years"] = date;
+
+        while (pos != wxNOT_FOUND)
+        {
+            sql.replace(pos, len, date);
+            pos = sql.Lower().Find("&budget_years");
+        }
+    }
+
+    //TODO: other parameters
+    return true;
+}
+
 wxString Model_Report::get_html(const Data* r)
 {
     mm_html_template report(r->TEMPLATECONTENT);
@@ -160,11 +261,12 @@ wxString Model_Report::get_html(const Data* r)
 
     wxSQLite3ResultSet q;
     int columnCount = 0;
+    wxString sql = r->SQLCONTENT;
+    std::map <wxString, wxString> rep_params;
     try
     {
-        wxString sql = r->SQLCONTENT;
-        sql.Trim();
-        if (!sql.empty() && sql.Last() != ';') sql += ';';
+        PrepareSQL(sql, rep_params);
+
         wxSQLite3Statement stmt = this->db_->PrepareStatement(sql);
         if (!stmt.IsReadOnly())
         {
@@ -281,6 +383,10 @@ wxString Model_Report::get_html(const Data* r)
 
     report(L"CONTENTS") = contents;
     {
+        for (const auto& item : rep_params)
+        {
+            report(item.first.Upper().ToStdWstring()) = item.second;
+        }
         auto p = mmex::getPathAttachment(mmAttachmentManage::InfotablePathSetting());
         //javascript does not handle backslashs
         p.Replace("\\", "\\\\");
@@ -288,7 +394,7 @@ wxString Model_Report::get_html(const Data* r)
         auto s = wxString(wxFileName::GetPathSeparator());
         s.Replace("\\", "\\\\");
         report(L"FILESEPARATOR") = s;
-        report(L"LANGUAGE") = Model_Setting::instance().GetStringSetting(LANGUAGE_PARAMETER, "english");
+        report(L"LANGUAGE") = Option::instance().LanguageISO6391();
         report(L"HTMLSCALE") = wxString::Format("%d", Option::instance().HtmlFontSize());
     }
     report(L"ERRORS") = errors;
@@ -307,8 +413,7 @@ wxString Model_Report::get_html(const Data* r)
         return _("Caught exception");
     }
 
-    outputReportFile(out);
-    return "";
+    return out;
 }
 
 void Model_Report::prepareTempFolder()
@@ -350,12 +455,21 @@ bool Model_Report::WindowsUpdateRegistry()
 #endif
 }
 
-void Model_Report::outputReportFile(const wxString& str)
+bool Model_Report::outputReportFile(const wxString& str, const wxString& name)
 {
-    wxFileOutputStream index_output(mmex::getReportIndex());
-    wxTextOutputStream index_file(index_output);
-    index_file << str;
-    index_output.Close();
+    bool ok = true;
+    wxFileOutputStream index_output(mmex::getReportFullFileName(name));
+    if (index_output.IsOk())
+    {
+        wxTextOutputStream index_file(index_output);
+        index_file << str;
+        index_output.Close();
+    }
+    else
+    {
+        ok = false;
+    }
+    return ok;
 }
 
 wxString Model_Report::get_html(const Data& r) 

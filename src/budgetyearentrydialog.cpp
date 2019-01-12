@@ -1,6 +1,7 @@
 /*******************************************************
  Copyright (C) 2006 Madhan Kanagavel
  Copyright (C) 2011,2012 Nikolay & Stefano Giorgio
+ Copyright (C) 2017 James Higley
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -21,8 +22,8 @@
 #include "paths.h"
 #include "constants.h"
 #include <wx/spinctrl.h>
-#include "model/Model_Budgetyear.h"
-#include "model/Model_Budget.h"
+#include "Model_Budgetyear.h"
+#include "Model_Budget.h"
 
 wxIMPLEMENT_DYNAMIC_CLASS(mmBudgetYearEntryDialog, wxDialog);
 
@@ -116,6 +117,7 @@ void mmBudgetYearEntryDialog::CreateControls()
         const wxString& budgetYearString = e.BUDGETYEARNAME;
         itemChoice_->Insert(budgetYearString, index++);
     }
+    itemChoice_->SetSelection(0);
     
     wxStaticLine* line = new wxStaticLine ( this, wxID_STATIC, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
     itemBoxSizer2->Add(line, 0, wxGROW|wxALL, 5);
@@ -130,7 +132,7 @@ void mmBudgetYearEntryDialog::CreateControls()
     itemBoxSizer9->Add(itemButtonCancel, 0, wxALIGN_CENTER_VERTICAL|wxALL, 5);
 }
 
-void mmBudgetYearEntryDialog::OnOk(wxCommandEvent& /*event*/)
+void mmBudgetYearEntryDialog::OnOk(wxCommandEvent& WXUNUSED(event))
 {
     wxString currYearText = wxString() << textYear_->GetValue();
     wxString baseYear = itemChoice_->GetStringSelection();

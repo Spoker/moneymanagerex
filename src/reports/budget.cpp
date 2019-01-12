@@ -1,5 +1,6 @@
 /*************************************************************************
  Copyright (C) 2012 Stefano Giorgio
+ Copyright (C) 2017 James Higley
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -19,9 +20,9 @@
 
 #include "mmex.h"
 #include "mmframe.h"
-#include "htmlbuilder.h"
+#include "reports/htmlbuilder.h"
 
-mmReportBudget::mmReportBudget(): mmPrintableBase("mmReportBudget") 
+mmReportBudget::mmReportBudget(): mmPrintableBase("mmReportBudget")
 {}
 
 mmReportBudget::~mmReportBudget()
@@ -72,7 +73,7 @@ void mmReportBudget::GetFinancialYearValues(int& day, int& month)
     }
 }
 
-wxString mmReportBudget::AdjustYearValues(int& day, int& month, long year, const wxString& yearStr)
+wxString mmReportBudget::AdjustYearValues(int day, int month, long year, const wxString& yearStr)
 {
     wxString ret = yearStr;
     if ((ret.length() < 5))
@@ -80,7 +81,7 @@ wxString mmReportBudget::AdjustYearValues(int& day, int& month, long year, const
         if (Option::instance().BudgetFinancialYears())
         {
             GetFinancialYearValues(day, month);
-            ret = wxString::Format(_("Financial Year: %s - %i"), yearStr, (year + 1));
+            ret = wxString::Format(_("Financial Year: %s - %li"), yearStr, (year + 1));
         }
         else
         {
@@ -95,7 +96,7 @@ wxString mmReportBudget::AdjustYearValues(int& day, int& month, long year, const
     return ret;
 }
 
-void mmReportBudget::AdjustYearValues(int& day, int& month, wxDateTime& date)
+void mmReportBudget::AdjustYearValues(int day, int month, wxDateTime& date)
 {
     if (Option::instance().BudgetFinancialYears())
     {

@@ -19,12 +19,12 @@
 #pragma once
 
 #include "mmpanelbase.h"
-#include "model/Model_Budget.h"
+#include "Model_Budget.h"
 
 class wxListCtrl;
 class wxListEvent;
+class wxStaticText;
 class mmBudgetingPanel;
-class mmGUIFrame;
 
 /* Custom ListCtrl class that implements virtual LC style */
 class budgetingListCtrl : public mmListCtrl
@@ -56,7 +56,7 @@ class mmBudgetingPanel : public mmPanelBase
 
 public:
     mmBudgetingPanel(int budgetYearID
-        , wxWindow *parent, mmGUIFrame *frame
+        , wxWindow *parent
         , wxWindowID winid = wxID_ANY
         , const wxPoint& pos = wxDefaultPosition
         , const wxSize& size = wxDefaultSize
@@ -92,7 +92,6 @@ public:
     wxString BuildPage() const { return listCtrlBudget_->BuildPage(GetPanelTitle()); }
 
 private:
-    mmGUIFrame* m_frame;
     std::vector<std::pair<int, int> > budget_;
     std::map<int, std::pair<double, double> > budgetTotals_;
     std::map<int, std::map<int, Model_Budget::PERIOD_ENUM> > budgetPeriod_;
@@ -102,6 +101,8 @@ private:
     budgetingListCtrl* listCtrlBudget_;
     wxString currentView_;
     int budgetYearID_;
+    wxString m_budget_offset_date;
+
     wxImageList* m_imageList;
     wxStaticText* budgetReportHeading_;
     wxStaticText* income_estimated_;

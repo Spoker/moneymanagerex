@@ -21,7 +21,7 @@
 #include "util.h"
 
 Model_Infotable::Model_Infotable()
-: Model<DB_Table_INFOTABLE_V1>()
+: Model<DB_Table_INFOTABLE>()
 {
 }
 
@@ -70,6 +70,8 @@ void Model_Infotable::Set(const wxString& key, const wxDateTime& date)
 
 void Model_Infotable::Set(const wxString& key, const wxString& value)
 {
+    if (!this->db_) return;
+
     Data* info = this->get_one(INFONAME(key));
     if (!info) // not cached
     {

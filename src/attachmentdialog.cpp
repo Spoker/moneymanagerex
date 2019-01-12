@@ -23,8 +23,8 @@ Copyright (C) 2014 Gabriele-V
 #include "paths.h"
 #include "util.h"
 
-#include "model/Model_Attachment.h"
-#include "model/Model_Infotable.h"
+#include "Model_Attachment.h"
+#include "Model_Infotable.h"
 
 #include <wx/mimetype.h>
 
@@ -55,7 +55,7 @@ mmAttachmentDialog::mmAttachmentDialog (wxWindow* parent, const wxString& RefTyp
     ColName_[ATTACHMENT_DESCRIPTION] = _("Description");
     ColName_[ATTACHMENT_FILENAME] = _("File");
 
-    Create(parent);
+    Create(parent, name);
 
     const wxString AttachmentsFolder = mmex::getPathAttachment(mmAttachmentManage::InfotablePathSetting());
 
@@ -163,7 +163,7 @@ void mmAttachmentDialog::AddAttachment()
 {
     const wxString attachmentFilePath = wxFileSelector(_("Import attachment:")
         , wxEmptyString, wxEmptyString, wxEmptyString
-        , "All Files |*.*"
+        , _("All Files")+ "|" + wxFileSelectorDefaultWildcardStr
         , wxFD_FILE_MUST_EXIST);
 
     if (attachmentFilePath.empty()) return;
@@ -172,7 +172,7 @@ void mmAttachmentDialog::AddAttachment()
     const wxString attachmentFileExtension = wxFileName(attachmentFilePath).GetExt().MakeLower();
     
     mmDialogComboBoxAutocomplete dlg(this, _("Enter a description for the new attachment:"),
-        _("Organize Attachments: Add Attachment"), attachmentFileName, Model_Attachment::instance().allDescriptions(true));
+        _("Organize Attachments: Add Attachment"), attachmentFileName, Model_Attachment::instance().allDescriptions());
 
     if (dlg.ShowModal() != wxID_OK)
         return;
@@ -193,7 +193,6 @@ void mmAttachmentDialog::AddAttachment()
         NewAttachment->DESCRIPTION = attachmentDescription;
         NewAttachment->FILENAME = importedFileName;
         m_attachment_id = Model_Attachment::instance().save(NewAttachment);
-        m_attachment_id = NewAttachment->ATTACHMENTID;
     }
 
     fillControls();
@@ -215,7 +214,7 @@ void mmAttachmentDialog::EditAttachment()
     {
         mmDialogComboBoxAutocomplete dlg(this, _("Enter a new description for the attachment:"),
             _("Organize Attachments: Edit Attachment"), attachment->DESCRIPTION,
-            Model_Attachment::instance().allDescriptions(true));
+            Model_Attachment::instance().allDescriptions());
 
         if (dlg.ShowModal() != wxID_OK)
             return;
@@ -226,7 +225,6 @@ void mmAttachmentDialog::EditAttachment()
 
         attachment->DESCRIPTION = description;
         m_attachment_id = Model_Attachment::instance().save(attachment);
-        m_attachment_id = attachment->ATTACHMENTID;
 
         fillControls();
     }
@@ -266,9 +264,9 @@ void mmAttachmentDialog::OnMenuSelected(wxCommandEvent& event)
     }
 }
 
-void mmAttachmentDialog::OnMagicButton(wxCommandEvent& event)
+void mmAttachmentDialog::OnMagicButton(wxCommandEvent& WXUNUSED(event))
 {
-    wxDataViewEvent evt(wxEVT_NULL);
+    wxDataViewEvent evt;
     OnItemRightClick(evt);
 }
 
@@ -305,7 +303,7 @@ void mmAttachmentDialog::OnItemRightClick(wxDataViewEvent& event)
     event.Skip();
 }
 
-void mmAttachmentDialog::OnListItemActivated(wxDataViewEvent& event)
+void mmAttachmentDialog::OnListItemActivated(wxDataViewEvent& WXUNUSED(event))
 {
     Model_Attachment::Data *attachment = Model_Attachment::instance().get(m_attachment_id);
     wxString attachmentFilePath = mmex::getPathAttachment(mmAttachmentManage::InfotablePathSetting())
@@ -314,12 +312,12 @@ void mmAttachmentDialog::OnListItemActivated(wxDataViewEvent& event)
     mmAttachmentManage::OpenAttachment(attachmentFilePath);
 }
 
-void mmAttachmentDialog::OnCancel(wxCommandEvent& /*event*/)
+void mmAttachmentDialog::OnCancel(wxCommandEvent& WXUNUSED(event))
 {
     EndModal(wxID_CANCEL);
 }
 
-void mmAttachmentDialog::OnOk(wxCommandEvent& /*event*/)
+void mmAttachmentDialog::OnOk(wxCommandEvent& WXUNUSED(event))
 {
     EndModal(wxID_OK);
 }
@@ -477,7 +475,7 @@ bool mmAttachmentManage::DeleteAllAttachments(const wxString& RefType, int RefId
 
 bool mmAttachmentManage::RelocateAllAttachments(const wxString& RefType, int OldRefId, int NewRefId)
 {
-    auto attachments = Model_Attachment::instance().find(Model_Attachment::DB_Table_ATTACHMENT_V1::REFTYPE(RefType), Model_Attachment::REFID(OldRefId));
+    auto attachments = Model_Attachment::instance().find(Model_Attachment::DB_Table_ATTACHMENT::REFTYPE(RefType), Model_Attachment::REFID(OldRefId));
     wxString AttachmentsFolder = mmex::getPathAttachment(mmAttachmentManage::InfotablePathSetting()) + m_PathSep + RefType + m_PathSep;
 
     for (auto &entry : attachments)

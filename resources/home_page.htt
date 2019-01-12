@@ -1,8 +1,7 @@
 ﻿<!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8" />
-    <meta http - equiv="Content-Type" content="text/html" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <title>Home Page</title>
     <script src="ChartNew.js"></script>
     <script src="sorttable.js"></script>
@@ -37,6 +36,7 @@
                 <TMPL_VAR CASH_ACCOUNTS_INFO>
                 <TMPL_VAR LOAN_ACCOUNTS_INFO>
                 <TMPL_VAR TERM_ACCOUNTS_INFO>
+                <TMPL_VAR CRYPTO_WALLETS_INFO>
                 <!--Stocks-->
                 <TMPL_VAR STOCKS_INFO>
                 <!--Assets-->
@@ -171,7 +171,6 @@
         </tr>
     </table>
 </div>
-</body>
 <script>
     function toggleTable(id) {
         var elem = document.getElementById(id)
@@ -208,6 +207,8 @@
     {toggleTable('CASH_ACCOUNTS_INFO')};
     if (!toggle_json['LOAN_ACCOUNTS_INFO'] && document.getElementById('LOAN_ACCOUNTS_INFO'))
     {toggleTable('LOAN_ACCOUNTS_INFO')};
+    if (!toggle_json['CRYPTO_WALLETS_INFO'] && document.getElementById('CRYPTO_WALLETS_INFO'))
+    {toggleTable('CRYPTO_WALLETS_INFO')};
     if (!toggle_json['INVEST'] && document.getElementById('INVEST'))
     {toggleTable('INVEST')};
     if (!toggle_json['TOP_CATEGORIES'] && document.getElementById('TOP_CATEGORIES'))
@@ -243,4 +244,5 @@
         }
     }
 </script>
+</body>
 </html>

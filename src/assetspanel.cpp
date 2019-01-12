@@ -1,6 +1,6 @@
 /*******************************************************
  Copyright (C) 2006 Madhan Kanagavel
- Copyright (C) 2015 Nikolay
+ Copyright (C) 2015, 2017 Nikolay Akimov
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -22,8 +22,10 @@
 #include "attachmentdialog.h"
 #include "constants.h"
 #include "images_list.h"
+#include "mmframe.h"
 
-#include "model/allmodel.h"
+#include "Model_Setting.h"
+#include "Model_Usage.h"
 #include <wx/srchctrl.h>
 
 /*******************************************************/
@@ -54,10 +56,6 @@ mmAssetsListCtrl::mmAssetsListCtrl(mmAssetsPanel* cp, wxWindow *parent, wxWindow
 {
     ToggleWindowStyle(wxLC_EDIT_LABELS);
 
-    // load the global variables
-    m_selected_col = Model_Setting::instance().GetIntSetting("ASSETS_SORT_COL", m_default_sort_column);
-    m_asc = Model_Setting::instance().GetBoolSetting("ASSETS_ASC", true);
-
     m_columns.push_back(PANEL_COLUMN(" ", 25, wxLIST_FORMAT_LEFT));
     m_columns.push_back(PANEL_COLUMN(_("ID"), wxLIST_AUTOSIZE, wxLIST_FORMAT_RIGHT));
     m_columns.push_back(PANEL_COLUMN(_("Name"), 150, wxLIST_FORMAT_LEFT));
@@ -72,12 +70,17 @@ mmAssetsListCtrl::mmAssetsListCtrl(mmAssetsPanel* cp, wxWindow *parent, wxWindow
 
     for (const auto& entry : m_columns)
     {
-        long count = GetColumnCount();
+        int count = GetColumnCount();
         InsertColumn(count
             , entry.HEADER
             , entry.FORMAT
             , Model_Setting::instance().GetIntSetting(wxString::Format(m_col_width, count), entry.WIDTH));
     }
+
+    // load the global variables
+    m_selected_col = Model_Setting::instance().GetIntSetting("ASSETS_SORT_COL", m_default_sort_column);
+    m_asc = Model_Setting::instance().GetBoolSetting("ASSETS_ASC", true);
+
 }
 
 void mmAssetsListCtrl::OnMouseRightClick(wxMouseEvent& event)
@@ -159,7 +162,7 @@ void mmAssetsListCtrl::OnListKeyDown(wxListEvent& event)
     }
 }
 
-void mmAssetsListCtrl::OnNewAsset(wxCommandEvent& /*event*/)
+void mmAssetsListCtrl::OnNewAsset(wxCommandEvent& WXUNUSED(event))
 {
     mmAssetDialog dlg(this, m_panel->m_frame, (Model_Asset::Data*)nullptr);
     if (dlg.ShowModal() == wxID_OK)
@@ -171,7 +174,7 @@ void mmAssetsListCtrl::OnNewAsset(wxCommandEvent& /*event*/)
 
 void mmAssetsListCtrl::doRefreshItems(int trx_id)
 {
-    int selectedIndex = m_panel->initVirtualListControl(trx_id, m_selected_col, m_asc);
+    int selectedIndex = initVirtualListControl(trx_id, m_selected_col, m_asc);
 
     long cnt = static_cast<long>(m_panel->m_assets.size());
 
@@ -179,20 +182,22 @@ void mmAssetsListCtrl::doRefreshItems(int trx_id)
         selectedIndex = m_asc ? cnt - 1 : 0;
 
     if (cnt>0)
-        RefreshItems(0, cnt > 0 ? --cnt : 0);
+    {
+        RefreshItems(0, cnt - 1);
+        if (selectedIndex >= 0)
+        {
+            SetItemState(selectedIndex, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
+            SetItemState(selectedIndex, wxLIST_STATE_FOCUSED, wxLIST_STATE_FOCUSED);
+            EnsureVisible(selectedIndex);
+        }
+    }
     else
         selectedIndex = -1;
 
-    if (selectedIndex >= 0 && cnt>0)
-    {
-        SetItemState(selectedIndex, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
-        SetItemState(selectedIndex, wxLIST_STATE_FOCUSED, wxLIST_STATE_FOCUSED);
-        EnsureVisible(selectedIndex);
-    }
     m_selected_row = selectedIndex;
 }
 
-void mmAssetsListCtrl::OnDeleteAsset(wxCommandEvent& /*event*/)
+void mmAssetsListCtrl::OnDeleteAsset(wxCommandEvent& WXUNUSED(event))
 {
     if (m_selected_row < 0)    return;
 
@@ -208,13 +213,13 @@ void mmAssetsListCtrl::OnDeleteAsset(wxCommandEvent& /*event*/)
         mmAttachmentManage::DeleteAllAttachments(Model_Attachment::reftype_desc(Model_Attachment::ASSET), asset.ASSETID);
         Model_Translink::RemoveTransLinkRecords(Model_Attachment::ASSET, asset.ASSETID);
 
-        m_panel->initVirtualListControl(m_selected_row, m_selected_col, m_asc);
+        initVirtualListControl(m_selected_row, m_selected_col, m_asc);
         m_selected_row = -1;
         m_panel->updateExtraAssetData(m_selected_row);
     }
 }
 
-void mmAssetsListCtrl::OnEditAsset(wxCommandEvent& /*event*/)
+void mmAssetsListCtrl::OnEditAsset(wxCommandEvent& WXUNUSED(event))
 {
     if (m_selected_row < 0)     return;
 
@@ -222,7 +227,7 @@ void mmAssetsListCtrl::OnEditAsset(wxCommandEvent& /*event*/)
     AddPendingEvent(evt);
 }
 
-void mmAssetsListCtrl::OnDuplicateAsset(wxCommandEvent& /*event*/)
+void mmAssetsListCtrl::OnDuplicateAsset(wxCommandEvent& WXUNUSED(event))
 {
     if (m_selected_row < 0)     return;
 
@@ -231,7 +236,7 @@ void mmAssetsListCtrl::OnDuplicateAsset(wxCommandEvent& /*event*/)
 
     if (EditAsset(duplicate_asset))
     {
-        m_panel->initVirtualListControl();
+        initVirtualListControl();
         doRefreshItems(duplicate_asset->ASSETID);
     }
 }
@@ -257,7 +262,7 @@ void mmAssetsListCtrl::OnGotoAssetAccount(wxCommandEvent& WXUNUSED(event))
     m_panel->GotoAssetAccount(m_selected_row);
 }
 
-void mmAssetsListCtrl::OnOrganizeAttachments(wxCommandEvent& /*event*/)
+void mmAssetsListCtrl::OnOrganizeAttachments(wxCommandEvent& WXUNUSED(event))
 {
     if (m_selected_row < 0) return;
 
@@ -270,7 +275,7 @@ void mmAssetsListCtrl::OnOrganizeAttachments(wxCommandEvent& /*event*/)
     doRefreshItems(RefId);
 }
 
-void mmAssetsListCtrl::OnOpenAttachment(wxCommandEvent& /*event*/)
+void mmAssetsListCtrl::OnOpenAttachment(wxCommandEvent& WXUNUSED(event))
 {
     if (m_selected_row < 0) return;
 
@@ -322,7 +327,7 @@ void mmAssetsListCtrl::OnColClick(wxListEvent& event)
 
     m_selected_col = ColumnNr;
 
-    item.SetImage(m_asc ? 8 : 7);
+    item.SetImage(m_asc ? ICON_DOWNARROW : ICON_UPARROW);
     SetColumn(m_selected_col, item);
 
     Model_Setting::instance().Set("ASSETS_ASC", m_asc);
@@ -343,6 +348,37 @@ void mmAssetsListCtrl::OnEndLabelEdit(wxListEvent& event)
     RefreshItems(event.GetIndex(), event.GetIndex());
 }
 
+int mmAssetsListCtrl::initVirtualListControl(int id, int col, bool asc)
+{
+    /* Clear all the records */
+    DeleteAllItems();
+
+    wxListItem item;
+    item.SetMask(wxLIST_MASK_IMAGE);
+    item.SetImage(asc ? ICON_DOWNARROW : ICON_UPARROW);
+    SetColumn(col, item);
+
+    if (m_panel->m_filter_type == Model_Asset::TYPE(-1)) // ALL
+        m_panel->m_assets = Model_Asset::instance().all();
+    else
+        m_panel->m_assets = Model_Asset::instance().find(Model_Asset::ASSETTYPE(m_panel->m_filter_type));
+    m_panel->sortTable();
+
+    SetItemCount(m_panel->m_assets.size());
+
+    double balance = 0.0;
+    for (const auto& asset : m_panel->m_assets) balance += Model_Asset::value(asset);
+    m_panel->m_header_text->SetLabelText(wxString::Format(_("Total: %s"), Model_Currency::toCurrency(balance))); // balance
+
+    int selected_item = 0;
+    for (const auto& asset : m_panel->m_assets)
+    {
+        if (asset.ASSETID == id) return selected_item;
+        ++selected_item;
+    }
+    return -1;
+}
+
 /*******************************************************/
 BEGIN_EVENT_TABLE(mmAssetsPanel, wxPanel)
     EVT_BUTTON(wxID_NEW, mmAssetsPanel::OnNewAsset)
@@ -358,12 +394,12 @@ END_EVENT_TABLE()
 /*******************************************************/
 
 mmAssetsPanel::mmAssetsPanel(mmGUIFrame* frame, wxWindow *parent, wxWindowID winid, const wxString& name)
-    : m_filter_type(Model_Asset::TYPE(-1))
-    , m_frame(frame)
-    , m_listCtrlAssets()
-    , itemStaticTextMainFilter_()
-    , header_text_()
-    , tips_()
+    : m_frame(frame)
+    , m_filter_type(Model_Asset::TYPE(-1))
+    , m_header_text(nullptr)
+    , m_listCtrlAssets(nullptr)
+    , m_itemStaticTextMainFilter(nullptr)
+    , m_tips()
 {
     Create(parent, winid, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL, name);
 }
@@ -380,13 +416,19 @@ bool mmAssetsPanel::Create(wxWindow *parent
     if (!wxPanel::Create(parent, winid, pos, size, style, name)) return false;
 
     this->windowsFreezeThaw();
+    wxDateTime start = wxDateTime::UNow();
 
-    tips_ = _("MMEX allows you to track fixed assets like cars, houses, land and others. Each asset can have its value appreciate by a certain rate per year, depreciate by a certain rate per year, or not change in value. The total assets are added to your total financial worth.");
+    m_tips = _("MMEX allows you to track fixed assets like cars,"
+        " houses, land and others. Each asset can have its value"
+        " appreciate by a certain rate per year, depreciate by a"
+        " certain rate per year, or not change in value."
+        " The total assets are added to your total financial worth.");
     CreateControls();
     GetSizer()->Fit(this);
     GetSizer()->SetSizeHints(this);
 
-    initVirtualListControl(-1, m_listCtrlAssets->m_selected_col, m_listCtrlAssets->m_asc);
+    m_listCtrlAssets->initVirtualListControl(-1
+        , m_listCtrlAssets->m_selected_col, m_listCtrlAssets->m_asc);
     if (!this->m_assets.empty())
         m_listCtrlAssets->EnsureVisible(this->m_assets.size() - 1);
 
@@ -394,7 +436,7 @@ bool mmAssetsPanel::Create(wxWindow *parent
     GetSizer()->Fit(this);
     GetSizer()->SetSizeHints(this);
 
-    Model_Usage::instance().pageview(this);
+    Model_Usage::instance().pageview(this, (wxDateTime::UNow() - start).GetMilliseconds().ToLong());
 
     return true;
 }
@@ -423,11 +465,11 @@ void mmAssetsPanel::CreateControls()
     //itemStaticBitmap3->Connect(ID_PANEL_CHECKING_STATIC_BITMAP_VIEW, wxEVT_RIGHT_DOWN, wxMouseEventHandler(mmAssetsPanel::OnFilterResetToViewAll), nullptr, this);
     itemStaticBitmap3->Connect(wxID_STATIC, wxEVT_LEFT_DOWN, wxMouseEventHandler(mmAssetsPanel::OnMouseLeftDown), nullptr, this);
 
-    itemStaticTextMainFilter_ = new wxStaticText(headerPanel, wxID_STATIC, _("All"));
-    itemBoxSizerHHeader2->Add(itemStaticTextMainFilter_, 0, wxALIGN_CENTER_VERTICAL | wxALL, 1);
+    m_itemStaticTextMainFilter = new wxStaticText(headerPanel, wxID_STATIC, _("All"));
+    itemBoxSizerHHeader2->Add(m_itemStaticTextMainFilter, 0, wxALIGN_CENTER_VERTICAL | wxALL, 1);
 
-    header_text_ = new wxStaticText(headerPanel, wxID_STATIC, "");
-    itemBoxSizerVHeader->Add(header_text_, g_flagsBorder1V);
+    m_header_text = new wxStaticText(headerPanel, wxID_STATIC, "");
+    itemBoxSizerVHeader->Add(m_header_text, g_flagsBorder1V);
 
     /* ---------------------- */
 
@@ -489,8 +531,8 @@ void mmAssetsPanel::CreateControls()
     itemButton7->Enable(false);
 
     wxBitmapButton* attachment_button_ = new wxBitmapButton(assets_panel
-        , wxID_FILE, mmBitmap(png::CLIP), wxDefaultPosition,
-        wxSize(30, itemButton7->GetSize().GetY()));
+        , wxID_FILE, mmBitmap(png::CLIP), wxDefaultPosition
+        , wxSize(30, itemButton7->GetSize().GetY()));
     attachment_button_->SetToolTip(_("Open attachments"));
     itemBoxSizer5->Add(attachment_button_, 0, wxRIGHT, 5);
     attachment_button_->Enable(false);
@@ -549,37 +591,6 @@ void mmAssetsPanel::sortTable()
     }
 
     if (!this->m_listCtrlAssets->m_asc) std::reverse(this->m_assets.begin(), this->m_assets.end());
-}
-
-int mmAssetsPanel::initVirtualListControl(int id, int col, bool asc)
-{
-    /* Clear all the records */
-    m_listCtrlAssets->DeleteAllItems();
-
-    wxListItem item;
-    item.SetMask(wxLIST_MASK_IMAGE);
-    item.SetImage(asc ? 8 : 7);
-    m_listCtrlAssets->SetColumn(col, item);
-
-    if (this->m_filter_type == Model_Asset::TYPE(-1)) // ALL
-        this->m_assets = Model_Asset::instance().all();
-    else
-        this->m_assets = Model_Asset::instance().find(Model_Asset::ASSETTYPE(m_filter_type));
-    this->sortTable();
-
-    m_listCtrlAssets->SetItemCount(this->m_assets.size());
-
-    double balance = 0.0;
-    for (const auto& asset: this->m_assets) balance += Model_Asset::value(asset); 
-    header_text_->SetLabelText(wxString::Format(_("Total: %s"), Model_Currency::toCurrency(balance))); // balance
-
-    int selected_item = 0;
-    for (const auto& asset: this->m_assets)
-    {
-        if (asset.ASSETID == id) return selected_item;
-        ++ selected_item;
-    }
-    return -1;
 }
 
 void mmAssetsPanel::OnDeleteAsset(wxCommandEvent& event)
@@ -662,7 +673,7 @@ void mmAssetsPanel::updateExtraAssetData(int selIndex)
     else
     {
         stm->SetLabelText("");
-        st->SetLabelText(this->tips_);
+        st->SetLabelText(this->m_tips);
         enableEditDeleteButtons(false);
     }
 }
@@ -709,13 +720,13 @@ void mmAssetsPanel::OnViewPopupSelected(wxCommandEvent& event)
 
     if (evt == 0)
     {
-        itemStaticTextMainFilter_->SetLabelText(_("All"));
+        m_itemStaticTextMainFilter->SetLabelText(_("All"));
         this->m_filter_type = Model_Asset::TYPE(-1);
     }
     else
     {
         this->m_filter_type = Model_Asset::TYPE(evt - 1);
-        itemStaticTextMainFilter_->SetLabelText(wxGetTranslation(Model_Asset::all_type()[evt - 1]));
+        m_itemStaticTextMainFilter->SetLabelText(wxGetTranslation(Model_Asset::all_type()[evt - 1]));
     }
 
     int trx_id = -1;
@@ -768,7 +779,8 @@ void mmAssetsPanel::AddAssetTrans(const int selected_index)
         {
             wxMessageBox(_(
                 "This asset does not have its own account\n\n"
-                "Multiple transactions for this asset are not recommended.")
+                "Multiple transactions for this asset are not recommended.\n"
+                "Please use the popup: 'Open Asset Account' to track the transaction.")
                 , _("Asset Management"), wxOK | wxICON_INFORMATION);
 
             return; // abort process

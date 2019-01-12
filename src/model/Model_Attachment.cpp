@@ -24,13 +24,13 @@ const std::vector<std::pair<Model_Attachment::REFTYPE, wxString> > Model_Attachm
     {Model_Attachment::TRANSACTION, wxString(wxTRANSLATE("Transaction"))},
     {Model_Attachment::STOCK, wxString(wxTRANSLATE("Stock"))},
     {Model_Attachment::ASSET, wxString(wxTRANSLATE("Asset"))},
-    {Model_Attachment::BANKACCOUNT, wxString(wxTRANSLATE("BankAccount"))}, //TODO: may be wxTRANSLATE("Bank Accounts")
-    {Model_Attachment::BILLSDEPOSIT, wxString(wxTRANSLATE("RecurringTransaction"))}, //TODO: may be wxTRANSLATE("Recurring Transactions")
+    {Model_Attachment::BANKACCOUNT, wxString(wxTRANSLATE("Bank Account"))},
+    {Model_Attachment::BILLSDEPOSIT, wxString(wxTRANSLATE("Recurring Transaction"))},
     {Model_Attachment::PAYEE, wxString(wxTRANSLATE("Payee"))}
 };
 
 Model_Attachment::Model_Attachment()
-: Model<DB_Table_ATTACHMENT_V1>()
+    : Model<DB_Table_ATTACHMENT>()
 {
 }
 
@@ -61,9 +61,12 @@ Model_Attachment& Model_Attachment::instance()
 /** Return all attachments references */
 wxArrayString Model_Attachment::all_type()
 {
-    wxArrayString types;
-    for (const auto& item : REFTYPE_CHOICES)
-        types.Add(item.second);
+    static wxArrayString types;
+    if (types.empty())
+    {
+        for (const auto& item : REFTYPE_CHOICES)
+            types.Add(item.second);
+    }
     return types;
 }
 
@@ -82,7 +85,7 @@ const Model_Attachment::Data_Set Model_Attachment::FilterAttachments(const wxStr
 /** Return the number of attachments linked to a specific object */
 int Model_Attachment::NrAttachments(const wxString& RefType, const int RefId)
 {
-    return Model_Attachment::instance().find(Model_Attachment::DB_Table_ATTACHMENT_V1::REFTYPE(RefType), Model_Attachment::REFID(RefId)).size();
+    return Model_Attachment::instance().find(Model_Attachment::DB_Table_ATTACHMENT::REFTYPE(RefType), Model_Attachment::REFID(RefId)).size();
 }
 
 /** Return the last attachment number linked to a specific object */
@@ -115,7 +118,7 @@ std::map<int, Model_Attachment::Data_Set> Model_Attachment::get_all(REFTYPE reft
 {
     std::map<int, Model_Attachment::Data_Set> data;
     wxString reftype_desc = Model_Attachment::reftype_desc(reftype);
-    for (const auto & attachment : this->find(Model_Attachment::DB_Table_ATTACHMENT_V1::REFTYPE(reftype_desc)))
+    for (const auto & attachment : this->find(Model_Attachment::DB_Table_ATTACHMENT::REFTYPE(reftype_desc)))
     {
         data[attachment.REFID].push_back(attachment);
     }
@@ -124,7 +127,7 @@ std::map<int, Model_Attachment::Data_Set> Model_Attachment::get_all(REFTYPE reft
 }
 
 /** Return all attachments descriptions*/
-wxArrayString Model_Attachment::allDescriptions(const bool RemoveDuplicated)
+wxArrayString Model_Attachment::allDescriptions()
 {
     wxArrayString descriptions;
     wxString PreviousDescription;

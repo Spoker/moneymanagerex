@@ -1,5 +1,6 @@
 /*******************************************************
- Copyright (C) 2013,2014 Guan Lisheng (guanlisheng@gmail.com)
+ Copyright (C) 2013-2016 Guan Lisheng (guanlisheng@gmail.com)
+ Copyright (C) 2013-2017 Stefano Giorgio [stef145g]
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -40,7 +41,7 @@ const std::vector<std::pair<Model_Checking::STATUS_ENUM, wxString> > Model_Check
     , {Model_Checking::DUPLICATE_, wxString(wxTRANSLATE("Duplicate"))}
 };
 
-Model_Checking::Model_Checking(): Model<DB_Table_CHECKINGACCOUNT_V1>()
+Model_Checking::Model_Checking(): Model<DB_Table_CHECKINGACCOUNT>()
 {
 }
 
@@ -50,16 +51,24 @@ Model_Checking::~Model_Checking()
 
 wxArrayString Model_Checking::all_type()
 {
-    wxArrayString types;
-    for (const auto& r : TYPE_CHOICES) types.Add(r.second);
-
+    static wxArrayString types;
+    if (types.empty())
+    {
+        for (const auto& r : TYPE_CHOICES)
+            types.Add(r.second);
+    }
     return types;
 }
 
 wxArrayString Model_Checking::all_status()
 {
-    wxArrayString status;
-    for (const auto& r : STATUS_ENUM_CHOICES) status.Add(r.second);
+    static wxArrayString status;
+
+    if (status.empty())
+    {
+        for (const auto& r : STATUS_ENUM_CHOICES)
+            status.Add(r.second);
+    }
 
     return status;
 }
@@ -103,24 +112,24 @@ const Model_Splittransaction::Data_Set Model_Checking::splittransaction(const Da
     return Model_Splittransaction::instance().find(Model_Splittransaction::TRANSID(r.TRANSID));
 }
 
-DB_Table_CHECKINGACCOUNT_V1::TRANSDATE Model_Checking::TRANSDATE(const wxDate& date, OP op)
+DB_Table_CHECKINGACCOUNT::TRANSDATE Model_Checking::TRANSDATE(const wxDate& date, OP op)
 {
-    return DB_Table_CHECKINGACCOUNT_V1::TRANSDATE(date.FormatISODate(), op);
+    return DB_Table_CHECKINGACCOUNT::TRANSDATE(date.FormatISODate(), op);
 }
 
-DB_Table_CHECKINGACCOUNT_V1::TRANSDATE Model_Checking::TRANSDATE(const wxString& date, OP op)
+DB_Table_CHECKINGACCOUNT::TRANSDATE Model_Checking::TRANSDATE(const wxString& date, OP op)
 {
-    return DB_Table_CHECKINGACCOUNT_V1::TRANSDATE(date, op);
+    return DB_Table_CHECKINGACCOUNT::TRANSDATE(date, op);
 }
 
-DB_Table_CHECKINGACCOUNT_V1::STATUS Model_Checking::STATUS(STATUS_ENUM status, OP op)
+DB_Table_CHECKINGACCOUNT::STATUS Model_Checking::STATUS(STATUS_ENUM status, OP op)
 {
-    return DB_Table_CHECKINGACCOUNT_V1::STATUS(toShortStatus(all_status()[status]), op);
+    return DB_Table_CHECKINGACCOUNT::STATUS(toShortStatus(all_status()[status]), op);
 }
 
-DB_Table_CHECKINGACCOUNT_V1::TRANSCODE Model_Checking::TRANSCODE(TYPE type, OP op)
+DB_Table_CHECKINGACCOUNT::TRANSCODE Model_Checking::TRANSCODE(TYPE type, OP op)
 {
-    return DB_Table_CHECKINGACCOUNT_V1::TRANSCODE(all_type()[type], op);
+    return DB_Table_CHECKINGACCOUNT::TRANSCODE(all_type()[type], op);
 }
 
 wxDate Model_Checking::TRANSDATE(const Data* r)
@@ -257,7 +266,8 @@ double Model_Checking::deposit(const Data& r, int account_id)
 
 double Model_Checking::reconciled(const Data* r, int account_id)
 {
-    return (Model_Checking::status(r->STATUS) == Model_Checking::RECONCILED) ? balance(r, account_id) : 0;
+    TransactionStatus status(r);
+    return (Model_Checking::status(status.Status(account_id)) == Model_Checking::RECONCILED) ? balance(r, account_id) : 0;
 }
 
 double Model_Checking::reconciled(const Data& r, int account_id)
@@ -284,60 +294,52 @@ bool Model_Checking::is_deposit(const Data* r)
 
 wxString Model_Checking::toShortStatus(const wxString& fullStatus)
 {
-    wxString s = fullStatus.Left(1);
-    s.Replace("N", "");
-    return s;
+    return fullStatus.Left(1) == "N" ? "" : fullStatus.Left(1);
 }
 
-Model_Checking::Full_Data::Full_Data() : Data(0), BALANCE(0), AMOUNT(0)
+Model_Checking::Full_Data::Full_Data() : Data(0), AMOUNT(0), BALANCE(0)
 {
 }
 
-Model_Checking::Full_Data::Full_Data(const Data& r) : Data(r), BALANCE(0), AMOUNT(0)
+Model_Checking::Full_Data::Full_Data(int account_id, const Data& r) : Data(r), AMOUNT(0), BALANCE(0)
     , m_splits(Model_Splittransaction::instance().find(Model_Splittransaction::TRANSID(r.TRANSID)))
 {
-    ACCOUNTNAME = Model_Account::get_account_name(r.ACCOUNTID);
-
-    if (Model_Checking::type(r) == Model_Checking::TRANSFER)
-    {
-        TOACCOUNTNAME = Model_Account::get_account_name(r.TOACCOUNTID);
-        PAYEENAME = TOACCOUNTNAME;
-    }
-    else
-    {
-        PAYEENAME = Model_Payee::get_payee_name(r.PAYEEID);
-    }
-    
-    if (!m_splits.empty())
-    {
-        for (const auto& entry : m_splits)
-            this->CATEGNAME += (this->CATEGNAME.empty() ? " * " : ", ")
-            + Model_Category::full_name(entry.CATEGID, entry.SUBCATEGID);
-    }
-    else
-    {
-        this->CATEGNAME = Model_Category::instance().full_name(r.CATEGID, r.SUBCATEGID);
-    }
+    Initialise(account_id, r);
 }
 
-Model_Checking::Full_Data::Full_Data(const Data& r
+Model_Checking::Full_Data::Full_Data(int account_id, const Data& r
     , const std::map<int /*trans id*/, Model_Splittransaction::Data_Set /*split trans*/ > & splits)
-    : Data(r), BALANCE(0), AMOUNT(0)
+    : Data(r), AMOUNT(0), BALANCE(0)
 {
     const auto it = splits.find(this->id());
     if (it != splits.end()) m_splits = it->second;
 
+    Initialise(account_id, r);
+}
+
+void Model_Checking::Full_Data::Initialise(int account_id, const Data& r)
+{
     ACCOUNTNAME = Model_Account::get_account_name(r.ACCOUNTID);
+    STATUSFD = r.STATUS;
     if (Model_Checking::type(r) == Model_Checking::TRANSFER)
     {
         TOACCOUNTNAME = Model_Account::get_account_name(r.TOACCOUNTID);
         PAYEENAME = TOACCOUNTNAME;
+        if (account_id == r.TOACCOUNTID)
+        {
+            STATUSFD = r.STATUS.Right(1);
+        }
+        else if (account_id == r.ACCOUNTID)
+        {
+            STATUSFD = r.STATUS.Left(1);
+        }
+
     }
     else
     {
         PAYEENAME = Model_Payee::get_payee_name(r.PAYEEID);
     }
-    
+
     if (!m_splits.empty())
     {
         for (const auto& entry : m_splits)
@@ -386,7 +388,7 @@ wxString Model_Checking::Full_Data::info() const
 {
     // TODO more info
     wxDate date = Model_Checking::TRANSDATE(this);
-    wxString info = wxGetTranslation(date.GetWeekDayName(date.GetWeekDay()));
+    wxString info = wxGetTranslation(date.GetEnglishWeekDayName(date.GetWeekDay()));
     return info;
 }
 
@@ -510,41 +512,130 @@ void Model_Checking::putDataToTransaction(Data *r, const Data &data)
 
 const wxString Model_Checking::Full_Data::to_json()
 {
-    json::Object o;
-    Model_Checking::Data::to_json(o);
-    o[L"ACCOUNTNAME"] = json::String(this->ACCOUNTNAME.ToStdWstring());
-    if (is_transfer(this))
-        o[L"TOACCOUNTNAME"] = json::String(this->TOACCOUNTNAME.ToStdWstring());
-    else
-        o[L"PAYEENAME"] = json::String(this->PAYEENAME.ToStdWstring());
+    StringBuffer json_buffer;
+    PrettyWriter<StringBuffer> json_writer(json_buffer);
+    json_writer.StartObject();
 
-    if (this->has_split())
+    Model_Checking::Data::as_json(json_writer);
+
+    json_writer.Key("ACCOUNTNAME");
+    json_writer.String(this->ACCOUNTNAME.c_str());
+
+    if (is_transfer(this))
     {
-        json::Array a;
-        for (const auto & item : m_splits)
-        {
-            json::Object s;
-            const std::wstring categ = Model_Category::full_name(item.CATEGID, item.SUBCATEGID).ToStdWstring();
-            s[categ] = json::Number(item.SPLITTRANSAMOUNT);
-            a.Insert(s);
-        }
-        o[L"CATEGS"] = json::Array(a);
+        json_writer.Key("TOACCOUNTNAME");
+        json_writer.String(this->TOACCOUNTNAME.c_str());
     }
     else
-        o[L"CATEG"] = json::String(Model_Category::full_name(this->CATEGID, this->SUBCATEGID).ToStdWstring());
+    {
+        json_writer.Key("PAYEENAME");
+        json_writer.String(this->PAYEENAME.c_str());
+    }
+    
+    if (this->has_split())
+    {
+        json_writer.Key("CATEGS");
+        json_writer.StartArray();
+        for (const auto & item : m_splits)
+        {
+            json_writer.StartObject();
+            json_writer.Key(Model_Category::full_name(item.CATEGID, item.SUBCATEGID).c_str());
+            json_writer.Double(item.SPLITTRANSAMOUNT);
+            json_writer.EndObject();
+        }
+        json_writer.EndArray();
+    }
+    else
+    {
+        json_writer.Key("CATEG");
+        json_writer.String(Model_Category::full_name(this->CATEGID, this->SUBCATEGID).c_str());
+    }
 
-    std::wstringstream ss;
-    json::Writer::Write(o, ss);
+    json_writer.EndObject();
 
-    return ss.str();
+    wxLogDebug("======= Model_Checking::FullData::to_json =======");
+    wxLogDebug("FullData using rapidjson:\n%s", json_buffer.GetString());
+    
+    return json_buffer.GetString();
 }
 
-const bool Model_Checking::foreignTransaction(const Data& data)
+bool Model_Checking::foreignTransaction(const Data& data)
 {
     return (data.TOACCOUNTID > 0) && ((data.TRANSCODE == all_type()[DEPOSIT]) || (data.TRANSCODE == all_type()[WITHDRAWAL]));
 }
 
-const bool Model_Checking::foreignTransactionAsTransfer(const Data& data)
+bool Model_Checking::foreignTransactionAsTransfer(const Data& data)
 {
     return foreignTransaction(data) && (data.TOACCOUNTID == Model_Translink::AS_TRANSFER);
+}
+
+//===========================================================================================//
+TransactionStatus::TransactionStatus()
+: m_account_b(-1)
+, m_status_a("N")
+, m_status_b("N")
+{
+}
+
+TransactionStatus::TransactionStatus(const DB_Table_CHECKINGACCOUNT::Data& data)
+{
+    InitStatus(&data);
+}
+
+TransactionStatus::TransactionStatus(const DB_Table_CHECKINGACCOUNT::Data* data)
+{
+    InitStatus(data);
+}
+
+void TransactionStatus::InitStatus(const DB_Table_CHECKINGACCOUNT::Data& data)
+{
+    InitStatus(&data);
+}
+
+void TransactionStatus::InitStatus(const DB_Table_CHECKINGACCOUNT::Data* data)
+{
+    m_account_b = data->TOACCOUNTID;
+    m_status_a = data->STATUS.Left(1);
+    if (Model_Checking::type(data) == Model_Checking::TRANSFER)
+    {
+        m_status_b = data->STATUS.Right(1);
+    }
+}
+
+void TransactionStatus::SetStatus(const wxString& status, int account_id, DB_Table_CHECKINGACCOUNT::Data& data)
+{
+    if (Model_Checking::type(data) == Model_Checking::TRANSFER)
+    {
+        if (data.ACCOUNTID == account_id)
+        {
+            m_status_a = (status.empty() ? "N" : status);
+        }
+        else
+        {
+            m_status_b = (status.empty() ? "N" : status);
+        }
+        data.STATUS = wxString::Format("%s%s", m_status_a, m_status_b);
+    }
+    else
+    {
+        m_status_a = (status.empty() ? "N" : status);
+        data.STATUS = m_status_a;
+    }
+}
+
+void TransactionStatus::SetStatusA(const wxString& status)
+{
+    m_status_a = (status.empty() ? "N" : status);
+}
+
+wxString TransactionStatus::Status(int account_id)
+{
+    if (account_id == m_account_b)
+    {
+        return m_status_b == "N" ? "" : m_status_b;
+    }
+    else
+    {
+        return m_status_a == "N" ? "" : m_status_a;
+    }
 }

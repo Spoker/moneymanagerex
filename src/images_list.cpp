@@ -1,5 +1,5 @@
 /*******************************************************
-Copyright (C) 2014, 2015 Nikolay
+Copyright (C) 2014, 2015 Nikolay Akimov
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -21,72 +21,85 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include <wx/image.h>
 #include <wx/bitmap.h>
 #include <map>
-//#include <wx/artprov.h>
 
-#include "../resources/new_db_png.h"
-#include "../resources/open_png.h"
-#include "../resources/save_png.h"
-#include "../resources/saveas_png.h"
-#include "../resources/new_acc_png.h"
-#include "../resources/home_png.h"
+#include "../resources/about_png.h"
+#include "../resources/appstart_png.h"
+#include "../resources/art_png.h"
+#include "../resources/asset_png.h"
+#include "../resources/budget_png.h"
+#include "../resources/bug_png.h"
+#include "../resources/car_png.h"
+#include "../resources/cash_account_png.h"
 #include "../resources/category_png.h"
 #include "../resources/category_relocation_png.h"
-#include "../resources/payee_png.h"
-#include "../resources/payee_relocation_png.h"
+#include "../resources/change_password_png.h"
+#include "../resources/clearlist_png.h"
+#include "../resources/clip_png.h"
+#include "../resources/coin_png.h"
+#include "../resources/community_png.h"
+#include "../resources/credit_card_png.h"
 #include "../resources/currency_png.h"
+#include "../resources/delete_account_png.h"
+#include "../resources/downarrow_png.h"
+#include "../resources/edit_account_png.h"
+#include "../resources/exit_png.h"
+#include "../resources/facebook_png.h"
 #include "../resources/filter_png.h"
+#include "../resources/forum_png.h"
+#include "../resources/fullscreen_png.h"
+#include "../resources/github_png.h"
+#include "../resources/google_play_png.h"
 #include "../resources/grm_png.h"
-#include "../resources/new_trx_png.h"
-#include "../resources/options_png.h"
-#include "../resources/about_png.h"
+#include "../resources/clear_png.h"
+#include "../resources/custom_fields_png.h"
 #include "../resources/help_png.h"
+#include "../resources/home_png.h"
+#include "../resources/household_obj_png.h"
+#include "../resources/import_png.h"
+#include "../resources/jewellery_png.h"
+#include "../resources/language_png.h"
+#include "../resources/leds_png.h"
+#include "../resources/loan_account_png.h"
+#include "../resources/loss_png.h"
+#include "../resources/new_acc_png.h"
+#include "../resources/new_db_png.h"
+#include "../resources/new_trx_png.h"
 #include "../resources/news_png.h"
 #include "../resources/nnews_png.h"
-#include "../resources/fullscreen_png.h"
+#include "../resources/open_png.h"
+#include "../resources/options_png.h"
+#include "../resources/padlock_png.h"
+#include "../resources/payee_png.h"
+#include "../resources/payee_relocation_png.h"
 #include "../resources/pie_chart_png.h"
-#include "../resources/budget_png.h"
-#include "../resources/recurring_png.h"
-#include "../resources/asset_png.h"
+#include "../resources/pp_png.h"
+#include "../resources/print_png.h"
+#include "../resources/profit_png.h"
 #include "../resources/property_png.h"
-#include "../resources/car_png.h"
-#include "../resources/jewellery_png.h"
-#include "../resources/household_obj_png.h"
-#include "../resources/art_png.h"
-#include "../resources/coin_png.h"
 #include "../resources/puzzle_png.h"
-#include "../resources/facebook_png.h"
-#include "../resources/credit_card_png.h"
+#include "../resources/currates_png.h"
+#include "../resources/reallocate_acc_png.h"
+#include "../resources/recurring_png.h"
+#include "../resources/reloc_png.h"
+#include "../resources/rightarrow_png.h"
+#include "../resources/run_png.h"
+#include "../resources/save_png.h"
+#include "../resources/saveas_png.h"
 #include "../resources/savings_acc_png.h"
-#include "../resources/stocks_png.h"
-#include "../resources/term_png.h"
-#include "../resources/status_r_png.h"
+#include "../resources/simplearrow_left_png.h"
+#include "../resources/simplearrow_right_png.h"
+#include "../resources/slack_png.h"
 #include "../resources/status_d_png.h"
 #include "../resources/status_f_png.h"
+#include "../resources/status_r_png.h"
 #include "../resources/status_v_png.h"
-#include "../resources/rightarrow_png.h"
-#include "../resources/google_play_png.h"
-#include "../resources/update_png.h"
-#include "../resources/forum_png.h"
-#include "../resources/profit_png.h"
-#include "../resources/loss_png.h"
-#include "../resources/web_png.h"
+#include "../resources/stocks_png.h"
+#include "../resources/bitcoin_png.h"
+#include "../resources/term_png.h"
+#include "../resources/trxnum_png.h"
 #include "../resources/uparrow_png.h"
-#include "../resources/downarrow_png.h"
-#include "../resources/import_png.h"
-#include "../resources/leds_png.h"
-#include "../resources/clip_png.h"
-#include "../resources/run_png.h"
-#include "../resources/clearlist_png.h"
-#include "../resources/delete_account_png.h"
-#include "../resources/edit_account_png.h"
-#include "../resources/reallocate_acc_png.h"
-#include "../resources/print_png.h"
-#include "../resources/appstart_png.h"
-#include "../resources/padlock_png.h"
-#include "../resources/change_password_png.h"
-#include "../resources/exit_png.h"
-#include "../resources/cash_account_png.h"
-#include "../resources/loan_account_png.h"
+#include "../resources/update_png.h"
+#include "../resources/web_png.h"
 
 //----------------------------------------------------------------------------
 /* Include XPM Support */
@@ -114,6 +127,7 @@ static const std::map<int, wxBitmap> navtree_images()
         , { HELP_PNG, mmBitmap(png::HELP) }
         , { FILTER_PNG, mmBitmap(png::FILTER) }
         , { ASSET_PNG, mmBitmap(png::ASSET) }
+        , { CRYPTO_PNG, mmBitmap(png::CRYPTO) }
         , { CUSTOMSQL_PNG, mmBitmap(png::GRM) }
         , { CUSTOMSQL_GRP_PNG, mmBitmap(png::GRM) } //TODO: GRM rep group ico
         , { SAVINGS_ACC_NORMAL_PNG, mmBitmap(png::SAVINGS_NORMAL) }
@@ -134,6 +148,9 @@ static const std::map<int, wxBitmap> navtree_images()
         , { LOAN_ACC_NORMAL_PNG, mmBitmap(png::LOAN_ACC_NORMAL) }
         , { LOAN_ACC_FAVORITE_PNG, mmBitmap(png::LOAN_ACC_FAVORITE) }
         , { LOAN_ACC_CLOSED_PNG, mmBitmap(png::LOAN_ACC_CLOSED) }
+        , { CRYPTO_ACC_NORMAL_PNG, mmBitmap(png::CRYPTO_ACC_NORMAL) }
+        , { CRYPTO_ACC_FAVORITE_PNG, mmBitmap(png::CRYPTO_ACC_FAVORITE) }
+        , { CRYPTO_ACC_CLOSED_PNG, mmBitmap(png::CRYPTO_ACC_CLOSED) }
     };
 };
 
@@ -184,13 +201,13 @@ const wxBitmap mmBitmap(int ref)
 
     switch (ref)
     {
-    case NEWS: return x == 16 ? wxBITMAP_PNG_FROM_DATA(news) : x == 24 ? wxBITMAP_PNG_FROM_DATA(news24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(news32) : wxBITMAP_PNG_FROM_DATA(news48);
     case NEW_DB: return x == 16 ? wxBITMAP_PNG_FROM_DATA(new_db) : x == 24 ? wxBITMAP_PNG_FROM_DATA(new_db24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(new_db32) : wxBITMAP_PNG_FROM_DATA(new_db48);
     case OPEN: return x == 16 ? wxBITMAP_PNG_FROM_DATA(open) : x == 24 ? wxBITMAP_PNG_FROM_DATA(open24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(open32) : wxBITMAP_PNG_FROM_DATA(open48);
     case SAVE: return x == 16 ? wxBITMAP_PNG_FROM_DATA(save) : x == 24 ? wxBITMAP_PNG_FROM_DATA(save24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(save32) : wxBITMAP_PNG_FROM_DATA(save48);
     case SAVEAS: return x == 16 ? wxBITMAP_PNG_FROM_DATA(saveas) : x == 24 ? wxBITMAP_PNG_FROM_DATA(saveas24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(saveas32) : wxBITMAP_PNG_FROM_DATA(saveas48);
     case NEW_ACC: return x == 16 ? wxBITMAP_PNG_FROM_DATA(new_acc) : x == 24 ? wxBITMAP_PNG_FROM_DATA(new_acc24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(new_acc32) : wxBITMAP_PNG_FROM_DATA(new_acc48);
     case HOME: return x == 16 ? wxBITMAP_PNG_FROM_DATA(home) : x == 24 ? wxBITMAP_PNG_FROM_DATA(home24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(home32) : wxBITMAP_PNG_FROM_DATA(home48);
+    case RELOCATION: return x == 16 ? wxBITMAP_PNG_FROM_DATA(reloc) : x == 24 ? wxBITMAP_PNG_FROM_DATA(reloc24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(reloc32) : wxBITMAP_PNG_FROM_DATA(reloc48);
     case CATEGORY: return x == 16 ? wxBITMAP_PNG_FROM_DATA(category) : x == 24 ? wxBITMAP_PNG_FROM_DATA(category24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(category32) : wxBITMAP_PNG_FROM_DATA(category48);
     case CATEGORY_RELOCATION: return x == 16 ? wxBITMAP_PNG_FROM_DATA(category_relocation) : x == 24 ? wxBITMAP_PNG_FROM_DATA(category_relocation24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(category_relocation32) : wxBITMAP_PNG_FROM_DATA(category_relocation48);
     case PAYEE: return x == 16 ? wxBITMAP_PNG_FROM_DATA(payee) : x == 24 ? wxBITMAP_PNG_FROM_DATA(payee24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(payee32) : wxBITMAP_PNG_FROM_DATA(payee48);
@@ -198,12 +215,21 @@ const wxBitmap mmBitmap(int ref)
     case CURR: return x == 16 ? wxBITMAP_PNG_FROM_DATA(currency) : x == 24 ? wxBITMAP_PNG_FROM_DATA(currency24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(currency32) : wxBITMAP_PNG_FROM_DATA(currency48);
     case FILTER: return x == 16 ? wxBITMAP_PNG_FROM_DATA(filter) : x == 24 ? wxBITMAP_PNG_FROM_DATA(filter24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(filter32) : wxBITMAP_PNG_FROM_DATA(filter48);
     case GRM: return x == 16 ? wxBITMAP_PNG_FROM_DATA(grm) : x == 24 ? wxBITMAP_PNG_FROM_DATA(grm24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(grm32) : wxBITMAP_PNG_FROM_DATA(grm48);
+    case CUSTOM: return x == 16 ? wxBITMAP_PNG_FROM_DATA(custom_fields) : x == 24 ? wxBITMAP_PNG_FROM_DATA(custom_fields24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(custom_fields32) : wxBITMAP_PNG_FROM_DATA(custom_fields48);
+    case CLEAR: return x == 16 ? wxBITMAP_PNG_FROM_DATA(clear) : x == 24 ? wxBITMAP_PNG_FROM_DATA(clear24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(clear32) : wxBITMAP_PNG_FROM_DATA(clear48);
     case OPTIONS: return x == 16 ? wxBITMAP_PNG_FROM_DATA(options) : x == 24 ? wxBITMAP_PNG_FROM_DATA(options24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(options32) : wxBITMAP_PNG_FROM_DATA(options48);
     case NEW_TRX: return x == 16 ? wxBITMAP_PNG_FROM_DATA(new_trx) : x == 24 ? wxBITMAP_PNG_FROM_DATA(new_trx24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(new_trx32) : wxBITMAP_PNG_FROM_DATA(new_trx48);
+    case LANG: return x == 16 ? wxBITMAP_PNG_FROM_DATA(language) : x == 24 ? wxBITMAP_PNG_FROM_DATA(language24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(language32) : wxBITMAP_PNG_FROM_DATA(language48);
     case ABOUT: return x == 16 ? wxBITMAP_PNG_FROM_DATA(about) : x == 24 ? wxBITMAP_PNG_FROM_DATA(about24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(about32) : wxBITMAP_PNG_FROM_DATA(about48);
     case HELP: return x == 16 ? wxBITMAP_PNG_FROM_DATA(help) : x == 24 ? wxBITMAP_PNG_FROM_DATA(help24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(help32) : wxBITMAP_PNG_FROM_DATA(help48);
-    case FULLSCREEN: return x == 16 ? wxBITMAP_PNG_FROM_DATA(fullscreen) : x == 24 ? wxBITMAP_PNG_FROM_DATA(fullscreen24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(fullscreen32) : wxBITMAP_PNG_FROM_DATA(fullscreen48);
+    case COMMUNITY: return x == 16 ? wxBITMAP_PNG_FROM_DATA(community) : x == 24 ? wxBITMAP_PNG_FROM_DATA(community24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(community32) : wxBITMAP_PNG_FROM_DATA(community48);
+    case GITHUB: return x == 16 ? wxBITMAP_PNG_FROM_DATA(github) : x == 24 ? wxBITMAP_PNG_FROM_DATA(github24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(github32) : wxBITMAP_PNG_FROM_DATA(github48);
+    case SLACK: return x == 16 ? wxBITMAP_PNG_FROM_DATA(slack) : x == 24 ? wxBITMAP_PNG_FROM_DATA(slack24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(slack32) : wxBITMAP_PNG_FROM_DATA(slack48);
+    case BUG: return x == 16 ? wxBITMAP_PNG_FROM_DATA(bug) : x == 24 ? wxBITMAP_PNG_FROM_DATA(bug24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(bug32) : wxBITMAP_PNG_FROM_DATA(bug48);
+    case NEWS: return x == 16 ? wxBITMAP_PNG_FROM_DATA(news) : x == 24 ? wxBITMAP_PNG_FROM_DATA(news24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(news32) : wxBITMAP_PNG_FROM_DATA(news48);
     case NEW_NEWS: return x == 16 ? wxBITMAP_PNG_FROM_DATA(nnews) : x == 24 ? wxBITMAP_PNG_FROM_DATA(nnews24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(nnews32) : wxBITMAP_PNG_FROM_DATA(nnews48);
+    case PP: return x == 16 ? wxBITMAP_PNG_FROM_DATA(pp) : x == 24 ? wxBITMAP_PNG_FROM_DATA(pp24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(pp32) : wxBITMAP_PNG_FROM_DATA(pp48);
+    case FULLSCREEN: return x == 16 ? wxBITMAP_PNG_FROM_DATA(fullscreen) : x == 24 ? wxBITMAP_PNG_FROM_DATA(fullscreen24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(fullscreen32) : wxBITMAP_PNG_FROM_DATA(fullscreen48);
     case PIE_CHART: return x == 16 ? wxBITMAP_PNG_FROM_DATA(pie_chart) : x == 24 ? wxBITMAP_PNG_FROM_DATA(pie_chart24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(pie_chart32) : wxBITMAP_PNG_FROM_DATA(pie_chart48);
     case BUDGET: return x == 16 ? wxBITMAP_PNG_FROM_DATA(budget) : x == 24 ? wxBITMAP_PNG_FROM_DATA(budget24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(budget32) : wxBITMAP_PNG_FROM_DATA(budget48);
     case RECURRING: return x == 16 ? wxBITMAP_PNG_FROM_DATA(recurring) : x == 24 ? wxBITMAP_PNG_FROM_DATA(recurring24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(recurring32) : wxBITMAP_PNG_FROM_DATA(recurring48);
@@ -234,15 +260,23 @@ const wxBitmap mmBitmap(int ref)
     case STOCKS_NORMAL: return x == 16 ? wxBITMAP_PNG_FROM_DATA(stocks) : x == 24 ? wxBITMAP_PNG_FROM_DATA(stocks24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(stocks32) : wxBITMAP_PNG_FROM_DATA(stocks48);
     case STOCKS_FAVORITE: return x == 16 ? wxBITMAP_PNG_FROM_DATA(stocks_favorite) : x == 24 ? wxBITMAP_PNG_FROM_DATA(stocks_favorite24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(stocks_favorite32) : wxBITMAP_PNG_FROM_DATA(stocks_favorite48);
     case STOCKS_CLOSED: return x == 16 ? wxBITMAP_PNG_FROM_DATA(stocks_closed) : x == 24 ? wxBITMAP_PNG_FROM_DATA(stocks_closed24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(stocks_closed32) : wxBITMAP_PNG_FROM_DATA(stocks_closed48);
+    case CRYPTO: return x == 16 ? wxBITMAP_PNG_FROM_DATA(bitcoin) : x == 24 ? wxBITMAP_PNG_FROM_DATA(bitcoin24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(bitcoin32) : wxBITMAP_PNG_FROM_DATA(bitcoin48);
+    case CRYPTO_ACC_NORMAL: return x == 16 ? wxBITMAP_PNG_FROM_DATA(bitcoin) : x == 24 ? wxBITMAP_PNG_FROM_DATA(bitcoin24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(bitcoin32) : wxBITMAP_PNG_FROM_DATA(bitcoin48);
+    case CRYPTO_ACC_FAVORITE: return x == 16 ? wxBITMAP_PNG_FROM_DATA(bitcoin) : x == 24 ? wxBITMAP_PNG_FROM_DATA(bitcoin24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(bitcoin32) : wxBITMAP_PNG_FROM_DATA(bitcoin48);
+    case CRYPTO_ACC_CLOSED: return x == 16 ? wxBITMAP_PNG_FROM_DATA(bitcoin) : x == 24 ? wxBITMAP_PNG_FROM_DATA(bitcoin24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(bitcoin32) : wxBITMAP_PNG_FROM_DATA(bitcoin48);
     case RECONCILED: return x == 16 ? wxBITMAP_PNG_FROM_DATA(status_r) : x == 24 ? wxBITMAP_PNG_FROM_DATA(status_r24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(status_r32) : wxBITMAP_PNG_FROM_DATA(status_r48);
     case VOID_STAT: return x == 16 ? wxBITMAP_PNG_FROM_DATA(status_v) : x == 24 ? wxBITMAP_PNG_FROM_DATA(status_v24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(status_v32) : wxBITMAP_PNG_FROM_DATA(status_v48);
     case FOLLOW_UP: return x == 16 ? wxBITMAP_PNG_FROM_DATA(status_f) : x == 24 ? wxBITMAP_PNG_FROM_DATA(status_f24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(status_f32) : wxBITMAP_PNG_FROM_DATA(status_f48);
     case DUPLICATE_STAT: return x == 16 ? wxBITMAP_PNG_FROM_DATA(status_d) : x == 24 ? wxBITMAP_PNG_FROM_DATA(status_d24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(status_d32) : wxBITMAP_PNG_FROM_DATA(status_d48);
-    case RIGHTARROW: return x == 16 ? wxBITMAP_PNG_FROM_DATA(rightarrow) : x == 24 ? wxBITMAP_PNG_FROM_DATA(rightarrow24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(rightarrow32) : wxBITMAP_PNG_FROM_DATA(rightarrow48);
+	case TRXNUM: return x == 16 ? wxBITMAP_PNG_FROM_DATA(trxnum) : x == 24 ? wxBITMAP_PNG_FROM_DATA(trxnum24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(trxnum32) : wxBITMAP_PNG_FROM_DATA(trxnum48);
+	case RIGHTARROW: return x == 16 ? wxBITMAP_PNG_FROM_DATA(rightarrow) : x == 24 ? wxBITMAP_PNG_FROM_DATA(rightarrow24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(rightarrow32) : wxBITMAP_PNG_FROM_DATA(rightarrow48);
     case RIGHTARROW_ACTIVE: return x == 16 ? wxBITMAP_PNG_FROM_DATA(rightarrow_active) : x == 24 ? wxBITMAP_PNG_FROM_DATA(rightarrow_active24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(rightarrow_active32) : wxBITMAP_PNG_FROM_DATA(rightarrow_active48);
+    case LEFTARROWSIMPLE: return x == 16 ? wxBITMAP_PNG_FROM_DATA(simplearrow_left) : x == 24 ? wxBITMAP_PNG_FROM_DATA(simplearrow_left24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(simplearrow_left32) : wxBITMAP_PNG_FROM_DATA(simplearrow_left48);
+    case RIGHTARROWSIMPLE: return x == 16 ? wxBITMAP_PNG_FROM_DATA(simplearrow_right) : x == 24 ? wxBITMAP_PNG_FROM_DATA(simplearrow_right24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(simplearrow_right32) : wxBITMAP_PNG_FROM_DATA(simplearrow_right48);
     case GOOGLE_PLAY: return x == 16 ? wxBITMAP_PNG_FROM_DATA(google_play) : x == 24 ? wxBITMAP_PNG_FROM_DATA(google_play24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(google_play32) : wxBITMAP_PNG_FROM_DATA(google_play48);
     case UPDATE: return x == 16 ? wxBITMAP_PNG_FROM_DATA(update) : x == 24 ? wxBITMAP_PNG_FROM_DATA(update24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(update32) : wxBITMAP_PNG_FROM_DATA(update48);
-    case FORUM: return x == 16 ? wxBITMAP_PNG_FROM_DATA(forum) : x == 24 ? wxBITMAP_PNG_FROM_DATA(forum24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(forum32) : wxBITMAP_PNG_FROM_DATA(forum48);
+	case CURRATES: return x == 16 ? wxBITMAP_PNG_FROM_DATA(currates) : x == 24 ? wxBITMAP_PNG_FROM_DATA(currates24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(currates32) : wxBITMAP_PNG_FROM_DATA(currates48);
+	case FORUM: return x == 16 ? wxBITMAP_PNG_FROM_DATA(forum) : x == 24 ? wxBITMAP_PNG_FROM_DATA(forum24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(forum32) : wxBITMAP_PNG_FROM_DATA(forum48);
     case CLIP: return x == 16 ? wxBITMAP_PNG_FROM_DATA(clip) : x == 24 ? wxBITMAP_PNG_FROM_DATA(clip24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(clip32) : wxBITMAP_PNG_FROM_DATA(clip48);
     case PROFIT: return x == 16 ? wxBITMAP_PNG_FROM_DATA(profit) : x == 24 ? wxBITMAP_PNG_FROM_DATA(profit24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(profit32) : wxBITMAP_PNG_FROM_DATA(profit48);
     case LOSS: return x == 16 ? wxBITMAP_PNG_FROM_DATA(loss) : x == 24 ? wxBITMAP_PNG_FROM_DATA(loss24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(loss32) : wxBITMAP_PNG_FROM_DATA(loss48);
@@ -250,7 +284,7 @@ const wxBitmap mmBitmap(int ref)
     case UPARROW: return x == 16 ? wxBITMAP_PNG_FROM_DATA(uparrow) : x == 24 ? wxBITMAP_PNG_FROM_DATA(uparrow24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(uparrow32) : wxBITMAP_PNG_FROM_DATA(uparrow48);
     case DOWNARROW: return x == 16 ? wxBITMAP_PNG_FROM_DATA(downarrow) : x == 24 ? wxBITMAP_PNG_FROM_DATA(downarrow24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(downarrow32) : wxBITMAP_PNG_FROM_DATA(downarrow48);
     case IMPORT: return x == 16 ? wxBITMAP_PNG_FROM_DATA(import) : x == 24 ? wxBITMAP_PNG_FROM_DATA(import24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(import32) : wxBITMAP_PNG_FROM_DATA(import48);
-    case LED_OFF: return x == 16 ? wxBITMAP_PNG_FROM_DATA(led_off) : x == 24 ? wxBITMAP_PNG_FROM_DATA(led_off24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(led_off32) : wxBITMAP_PNG_FROM_DATA(led_off48);
+    // case LED_OFF: return x == 16 ? wxBITMAP_PNG_FROM_DATA(led_off) : x == 24 ? wxBITMAP_PNG_FROM_DATA(led_off24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(led_off32) : wxBITMAP_PNG_FROM_DATA(led_off48);
     case LED_RED: return x == 16 ? wxBITMAP_PNG_FROM_DATA(led_red) : x == 24 ? wxBITMAP_PNG_FROM_DATA(led_red24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(led_red32) : wxBITMAP_PNG_FROM_DATA(led_red48);
     case LED_YELLOW: return x == 16 ? wxBITMAP_PNG_FROM_DATA(led_yellow) : x == 24 ? wxBITMAP_PNG_FROM_DATA(led_yellow24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(led_yellow32) : wxBITMAP_PNG_FROM_DATA(led_yellow48);
     case LED_GREEN: return x == 16 ? wxBITMAP_PNG_FROM_DATA(led_green) : x == 24 ? wxBITMAP_PNG_FROM_DATA(led_green24) : x == 32 ? wxBITMAP_PNG_FROM_DATA(led_green32) : wxBITMAP_PNG_FROM_DATA(led_green48);

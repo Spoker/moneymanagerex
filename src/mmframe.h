@@ -1,9 +1,9 @@
 /*******************************************************
-Copyright (C) 2006 Madhan Kanagavel
-Copyright (C) 2012 Stefano Giorgio
-Copyright (C) 2013 Nikolay
-Copyright (C) 2014 James Higley
-Copyright (C) 2014 Guan Lisheng (guanlisheng@gmail.com)
+ Copyright (C) 2006 Madhan Kanagavel
+ Copyright (C) 2012 Stefano Giorgio
+ Copyright (C) 2013 Nikolay
+ Copyright (C) 2014, 2017 James Higley
+ Copyright (C) 2014 Guan Lisheng (guanlisheng@gmail.com)
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -25,12 +25,10 @@ Copyright (C) 2014 Guan Lisheng (guanlisheng@gmail.com)
 #define MM_FRAME_H_
 //----------------------------------------------------------------------------
 #include <wx/aui/aui.h>
-#include <wx/toolbar.h>
 #include <vector>
 #include "option.h"
 #include "constants.h"
 #include "util.h"
-
 //----------------------------------------------------------------------------
 class wxSQLite3Database;
 class mmPrintableBase;
@@ -38,7 +36,6 @@ class mmPanelBase;
 class mmHomePagePanel;
 class mmTreeItemData;
 class mmCheckingPanel;
-class mmStockPanel;
 class mmBudgetingPanel;
 class mmBillsDepositsPanel;
 class mmFileHistory;
@@ -46,6 +43,7 @@ class CommitCallbackHook;
 class UpdateCallbackHook;
 class ModelBase;
 class mmGUIApp;
+class wxToolBar;
 //----------------------------------------------------------------------------
 
 class mmGUIFrame : public wxFrame
@@ -85,7 +83,6 @@ private:
 
     /* Currently open file name */
     wxString m_filename;
-    wxString m_password;
 
     int gotoAccountID_;
     int gotoTransID_;
@@ -121,11 +118,11 @@ private:
     void resetNavTreeControl();
     void cleanupNavTreeControl(wxTreeItemId& item);
     wxSizer* cleanupHomePanel(bool new_sizer = true);
-    bool openFile(const wxString& fileName, bool openingNew, const wxString &password = "");
+    bool openFile(const wxString& fileName, const bool openingNew, const bool encrypt, const wxString &password = wxEmptyString);
+    bool createDataStore(const wxString& fileName, const bool openingNew, const bool encrypt, const wxString &passwd);
     void InitializeModelTables();
-    bool createDataStore(const wxString& fileName, const wxString &passwd, bool openingNew);
     void createMenu();
-    void CreateToolBar();
+    void createToolBar();
     void createReportsPage(mmPrintableBase* rb, bool cleanup);
     void createHelpPage();
     void refreshPanelData();
@@ -149,7 +146,7 @@ private:
     void saveSettings();
     void menuEnableItems(bool enable);
     void updateNavTreeControl();
-    void updateReportNavigation(wxTreeItemId& reports, wxTreeItemId& budgeting);
+    void updateReportNavigation(wxTreeItemId& reports, bool budget);
     void showTreePopupMenu(const wxTreeItemId& id, const wxPoint& pt);
     void showBeginAppDialog(bool fromScratch = false);
     void SetDataBaseParameters(const wxString& fileName);
@@ -158,8 +155,8 @@ private:
 
     void OnNew(wxCommandEvent& event);
     void OnOpen(wxCommandEvent& event);
-    void OnConvertEncryptedDB(wxCommandEvent& event);
-    void OnChangeEncryptPassword(wxCommandEvent& event);
+    void OnSetPassword(wxCommandEvent& event);
+    void OnRemovePassword(wxCommandEvent& event);
     void OnVacuumDB(wxCommandEvent& event);
     void OnDebugDB(wxCommandEvent& event);
     void OnSaveAs(wxCommandEvent& event);
@@ -167,7 +164,7 @@ private:
     void OnExportToXML(wxCommandEvent& event);
     void OnExportToQIF(wxCommandEvent& event);
     void OnExportToHtml(wxCommandEvent& event);
-    void OnImportQFX(wxCommandEvent& event);
+    void OnExportToWebApp(wxCommandEvent& event);
     void OnImportUniversalCSV(wxCommandEvent& event);
     void OnImportXML(wxCommandEvent& event);
     void OnImportQIF(wxCommandEvent& event);
@@ -181,9 +178,9 @@ private:
 
     bool m_hide_share_accounts;
     void OnHideShareAccounts(wxCommandEvent &event);
+    void OnChangeGUILanguage(wxCommandEvent &event);
 
     void OnViewToolbar(wxCommandEvent &event);
-    void OnViewStatusbar(wxCommandEvent &event);
     void OnViewLinks(wxCommandEvent &event);
     void OnViewBudgetFinancialYears(wxCommandEvent &event);
     void OnViewBudgetTransferTotal(wxCommandEvent &event);
@@ -204,21 +201,21 @@ private:
     void OnCategoryRelocation(wxCommandEvent& event);
     void OnPayeeRelocation(wxCommandEvent& event);
     void OnNewTransaction(wxCommandEvent& event);
-    void refreshPanelData(wxCommandEvent& /*event*/);
+    void refreshPanelData(wxCommandEvent& WXUNUSED(event));
 
     void OnOptions(wxCommandEvent& event);
     void OnBudgetSetupDialog(wxCommandEvent& event);
     void OnCurrency(wxCommandEvent& event);
     void OnTransactionReport(wxCommandEvent& event);
     void OnGeneralReportManager(wxCommandEvent& event);
+    void OnCustomFieldsManager(wxCommandEvent& event);
 
     void OnHelp(wxCommandEvent& event);
     void OnShowAppStartDialog(wxCommandEvent& WXUNUSED(event));
     void OnCheckUpdate(wxCommandEvent& event);
-    void OnGooglePlay(wxCommandEvent& event);
-    void OnReportIssues(wxCommandEvent& event);
     void OnBeNotified(wxCommandEvent& event);
-    void OnFacebook(wxCommandEvent& event);
+    void OnSimpleURLOpen(wxCommandEvent& event);
+    void OnReportBug(wxCommandEvent& event);
     void OnAbout(wxCommandEvent& event);
 
     void OnItemRightClick(wxTreeEvent& event);
@@ -227,6 +224,7 @@ private:
     void OnPopupDeleteAccount(wxCommandEvent& event);
     void OnPopupEditAccount(wxCommandEvent& event);
     void OnPopupReallocateAccount(wxCommandEvent& event);
+    void OnPopupAccountBaseBalance(wxCommandEvent& event);
 
     void OnViewAccountsTemporaryChange(wxCommandEvent& event);
 
@@ -242,10 +240,12 @@ private:
     wxMenu* m_menuRecentFiles;
 
     void OnRecentFiles(wxCommandEvent& event);
-    void OnClearRecentFiles(wxCommandEvent& /*event*/);
+    void OnClearRecentFiles(wxCommandEvent& WXUNUSED(event));
+
+    void OnHideShowReport(wxCommandEvent& event);
 
     /** Sets the database to the new database selected by the user */
-    void SetDatabaseFile(const wxString& dbFileName, bool newDatabase = false);
+    void SetDatabaseFile(const wxString& dbFileName, bool newDatabase = false, bool eencrypt = false, const wxString& password = wxEmptyString);
     
     // Required to prevent memory leaks.
     CommitCallbackHook* m_commit_callback_hook;
@@ -271,20 +271,34 @@ private:
         MENU_ORGPAYEE,
         MENU_BUDGETSETUPDIALOG,
         MENU_CHECKUPDATE,
-        MENU_GOOGLEPLAY,
         MENU_IMPORT,
         MENU_IMPORT_UNIVCSV,
         MENU_IMPORT_XML,
         MENU_IMPORT_WEBAPP,
-        MENU_REPORTISSUES,
         MENU_ANNOUNCEMENTMAILING,
-        MENU_FACEBOOK,
+        MENU_FACEBOOK, // start range for OnSimpleURLOpen
+        MENU_COMMUNITY,
+        MENU_WEBSITE,
+        MENU_WIKI,
+        MENU_YOUTUBE,
+        MENU_GITHUB,
+        MENU_RSS,
+        MENU_SLACK,
+        MENU_DONATE,
+        MENU_REPORTISSUES,
+        MENU_BUY_COFFEE,
+        MENU_GOOGLEPLAY,
+        MENU_TWITTER, // end range for OnSimpleURLOpen
+        MENU_REPORT_BUG,
         MENU_EXPORT_CSV,
         MENU_EXPORT_XML,
         MENU_EXPORT_QIF,
+        MENU_EXPORT_WEBAPP,
         MENU_SHOW_APPSTART,
         MENU_EXPORT_HTML,
         MENU_CURRENCY,
+        MENU_LANG,
+        MENU_LANG_MAX = MENU_LANG + wxLANGUAGE_USER_DEFINED,
 
         MENU_IMPORT_MMNETCSV,
         MENU_IMPORT_QIF,
@@ -296,8 +310,8 @@ private:
         MENU_VIEW_HIDE_SHARE_ACCOUNTS,
         MENU_CATEGORY_RELOCATION,
         MENU_PAYEE_RELOCATION,
-        MENU_CONVERT_ENC_DB,
-        MENU_CHANGE_ENCRYPT_PASSWORD,
+        MENU_SET_PASSWORD,
+        MENU_REMOVE_PASSWORD,
         MENU_DB_VACUUM,
         MENU_DB_DEBUG,
         MENU_ONLINE_UPD_CURRENCY_RATE,
@@ -313,6 +327,7 @@ private:
         MENU_TREEPOPUP_MOVE,
         MENU_TREEPOPUP_DELETE,
         MENU_TREEPOPUP_REALLOCATE,
+        MENU_TREEPOPUP_ACCOUNT_BASE_BALANCE,
 
         //
         MENU_TREEPOPUP_ACCOUNT_NEW,
@@ -331,6 +346,9 @@ private:
         MENU_TREEPOPUP_ACCOUNT_VIEWOPEN,
         MENU_TREEPOPUP_ACCOUNT_VIEWCLOSED,
         AUTO_REPEAT_TRANSACTIONS_TIMER_ID,
+
+        MENU_TREEPOPUP_HIDE_SHOW_REPORT,
+        MENU_TREEPOPUP_HIDE_SHOW_REPORT32 = MENU_TREEPOPUP_HIDE_SHOW_REPORT + 32, // Reserved space
     };
 };
 //----------------------------------------------------------------------------

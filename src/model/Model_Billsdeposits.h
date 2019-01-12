@@ -20,15 +20,16 @@
 #define MODEL_BILLSDEPOSITS_H
 
 #include "Model.h"
-#include "db/DB_Table_Billsdeposits_V1.h"
-#include "model/Model_Splittransaction.h"
+#include "Table_Billsdeposits.h"
+#include "Model_Splittransaction.h"
 #include "Model_Budgetsplittransaction.h"
+
 const int BD_REPEATS_MULTIPLEX_BASE = 100;
 
-class Model_Billsdeposits : public Model<DB_Table_BILLSDEPOSITS_V1>
+class Model_Billsdeposits : public Model<DB_Table_BILLSDEPOSITS>
 {
 public:
-    using Model<DB_Table_BILLSDEPOSITS_V1>::remove;
+    using Model<DB_Table_BILLSDEPOSITS>::remove;
     typedef Model_Budgetsplittransaction::Data_Set Split_Data_Set;
 
 public:
@@ -95,7 +96,8 @@ public:
         wxString ACCOUNTNAME;
         wxString PAYEENAME;
         wxString CATEGNAME;
-        Model_Budgetsplittransaction::Data_Set m_bill_splits;
+        Model_Budgetsplittransaction::Data_Set m_splits;
+        bool has_split() const;
     };
     typedef std::vector<Full_Data> Full_Data_Set;
 
@@ -163,8 +165,8 @@ public:
     */
     bool remove(int id);
 
-    static DB_Table_BILLSDEPOSITS_V1::STATUS STATUS(STATUS_ENUM status, OP op = EQUAL);
-    static DB_Table_BILLSDEPOSITS_V1::TRANSCODE TRANSCODE(TYPE type, OP op = EQUAL);
+    static DB_Table_BILLSDEPOSITS::STATUS STATUS(STATUS_ENUM status, OP op = EQUAL);
+    static DB_Table_BILLSDEPOSITS::TRANSCODE TRANSCODE(TYPE type, OP op = EQUAL);
 
     static const Model_Budgetsplittransaction::Data_Set splittransaction(const Data* r);
     static const Model_Budgetsplittransaction::Data_Set splittransaction(const Data& r);

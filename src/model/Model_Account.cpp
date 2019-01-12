@@ -29,18 +29,19 @@ const std::vector<std::pair<Model_Account::STATUS_ENUM, wxString> > Model_Accoun
 
 const std::vector<std::pair<Model_Account::TYPE, wxString> > Model_Account::TYPE_CHOICES =
 {
-    {Model_Account::CASH, wxString(wxTRANSLATE("Cash"))},
-    {Model_Account::CHECKING, wxString(wxTRANSLATE("Checking"))},
-    {Model_Account::CREDIT_CARD, wxString(wxTRANSLATE("Credit Card"))},
-    {Model_Account::LOAN, wxString(wxTRANSLATE("Loan"))},
-    {Model_Account::TERM, wxString(wxTRANSLATE("Term"))},
-    {Model_Account::INVESTMENT, wxString(wxTRANSLATE("Investment"))},
-    {Model_Account::ASSET, wxString(wxTRANSLATE("Asset"))},
-    {Model_Account::SHARES, wxString(wxTRANSLATE("Shares"))},
+    { Model_Account::CASH, wxString(wxTRANSLATE("Cash"))},
+    { Model_Account::CHECKING, wxString(wxTRANSLATE("Checking"))},
+    { Model_Account::CREDIT_CARD, wxString(wxTRANSLATE("Credit Card"))},
+    { Model_Account::LOAN, wxString(wxTRANSLATE("Loan"))},
+    { Model_Account::TERM, wxString(wxTRANSLATE("Term"))},
+    { Model_Account::CRYPTO, wxString(wxTRANSLATE("Crypto")) },
+    { Model_Account::INVESTMENT, wxString(wxTRANSLATE("Investment"))},
+    { Model_Account::ASSET, wxString(wxTRANSLATE("Asset"))},
+    { Model_Account::SHARES, wxString(wxTRANSLATE("Shares"))},
 };
 
 Model_Account::Model_Account()
-: Model<DB_Table_ACCOUNTLIST_V1>()
+: Model<DB_Table_ACCOUNTLIST>()
 {
 }
 
@@ -83,15 +84,22 @@ wxArrayString Model_Account::all_checking_account_names(bool skip_closed)
 
 wxArrayString Model_Account::all_status()
 {
-    wxArrayString status;
-    for (const auto& item : STATUS_CHOICES) status.Add(item.second);
+    static wxArrayString status;
+    if (status.empty())
+    {
+        for (const auto& item : STATUS_CHOICES) status.Add(item.second);
+    }
     return status;
 }
 
 wxArrayString Model_Account::all_type()
 {
-    wxArrayString type;
-    for (const auto& item : TYPE_CHOICES) type.Add(item.second);
+    static wxArrayString type;
+    if (type.empty())
+    {
+        for (const auto& item : TYPE_CHOICES) 
+            type.Add(item.second);
+    }
     return type;
 }
 
@@ -253,9 +261,9 @@ Model_Account::STATUS_ENUM Model_Account::status(const Data& account)
     return status(&account);
 }
 
-DB_Table_ACCOUNTLIST_V1::STATUS Model_Account::STATUS(STATUS_ENUM status, OP op)
+DB_Table_ACCOUNTLIST::STATUS Model_Account::STATUS(STATUS_ENUM status, OP op)
 {
-    return DB_Table_ACCOUNTLIST_V1::STATUS(all_status()[status], op);
+    return DB_Table_ACCOUNTLIST::STATUS(all_status()[status], op);
 }
 
 Model_Account::TYPE Model_Account::type(const Data* account)
@@ -303,9 +311,14 @@ bool Model_Account::is_used(const Model_Currency::Data& c)
     return is_used(&c);
 }
 
-int Model_Account::checking_account_num()
+int Model_Account::money_accounts_num()
 {
-    return Model_Account::instance().find(ACCOUNTTYPE(all_type()[CHECKING])).size();
+    return
+        Model_Account::instance().find(ACCOUNTTYPE(all_type()[CASH])).size()
+        + Model_Account::instance().find(ACCOUNTTYPE(all_type()[CHECKING])).size()
+        + Model_Account::instance().find(ACCOUNTTYPE(all_type()[CREDIT_CARD])).size()
+        + Model_Account::instance().find(ACCOUNTTYPE(all_type()[LOAN])).size()
+        + Model_Account::instance().find(ACCOUNTTYPE(all_type()[TERM])).size();
 }
 
 bool Model_Account::Exist(const wxString& account_name)

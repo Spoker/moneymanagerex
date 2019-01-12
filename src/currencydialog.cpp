@@ -1,6 +1,7 @@
 ﻿/*******************************************************
  Copyright (C) 2006 Madhan Kanagavel
  Copyright (C) 2015 Gabriele-V
+ Copyright (C) 2013-2017 Nikolay Akimov
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -20,12 +21,13 @@
 #include "currencydialog.h"
 #include "constants.h"
 #include "util.h"
-#include "model/Model_Currency.h"
+#include "Model_Currency.h"
 #include "defs.h"
 #include "paths.h"
 #include "validators.h"
-#include "mmtextctrl.h"
+#include "mmTextCtrl.h"
 #include "mmSimpleDialogs.h"
+#include "option.h"
 
 #include <wx/combobox.h>
 #include <wx/valnum.h>
@@ -36,7 +38,7 @@ wxBEGIN_EVENT_TABLE(mmCurrencyDialog, wxDialog)
 EVT_BUTTON(wxID_OK, mmCurrencyDialog::OnOk)
 EVT_BUTTON(wxID_CANCEL, mmCurrencyDialog::OnCancel)
 EVT_TEXT(ID_DIALOG_CURRENCY, mmCurrencyDialog::OnTextChanged)
-EVT_TEXT_ENTER(ID_DIALOG_CURRENCY_RATE, mmCurrencyDialog::OnTextEntered)
+EVT_CHECKBOX(ID_DIALOG_CURRENCY, mmCurrencyDialog::OnTextChanged)
 wxEND_EVENT_TABLE()
 
 static const int SCALE = 9;
@@ -49,25 +51,29 @@ mmCurrencyDialog::~mmCurrencyDialog()
 {
 }
 
-mmCurrencyDialog::mmCurrencyDialog(wxWindow* parent, Model_Currency::Data * currency)
-    : m_currency(currency)
-        , m_scale(SCALE)
+mmCurrencyDialog::mmCurrencyDialog(wxWindow* parent
+    , const Model_Currency::Data * currency)
+        : m_scale(SCALE)
         , m_currencyName(nullptr)
-        , sampleText_(nullptr)
+        , m_sample_text(nullptr)
         , m_currencySymbol(nullptr)
-        , baseConvRate_(nullptr)
         , pfxTx_(nullptr)
         , sfxTx_(nullptr)
         , decTx_(nullptr)
         , grpTx_(nullptr)
-        , unitTx_(nullptr)
-        , centTx_(nullptr)
         , scaleTx_(nullptr)
+        , m_historic(nullptr)
+
 {
-    if (!m_currency)
+
+    if (currency)
+    {
+        m_currency = Model_Currency::instance().clone(currency);
+        m_currency->CURRENCYID = currency->CURRENCYID;
+    }
+    else
     {
         m_currency = Model_Currency::instance().create();
-        m_currency->BASECONVRATE = 1;
         m_currency->SCALE = 2;
     }
 
@@ -86,8 +92,7 @@ bool mmCurrencyDialog::Create(wxWindow* parent, wxWindowID id
 
     if (!m_currency)
     {
-        mmSingleChoiceDialog select_currency_name(this, _("Currency name")
-            , _("Select Currency"), Model_Currency::instance().all_currency_names());
+        mmSingleChoiceDialog select_currency_name(this, _("Currency Name"), _("Select Currency"), Model_Currency::instance().all_currency_names());
         if (select_currency_name.ShowModal() == wxID_OK)
         {
             const wxString currencyname = select_currency_name.GetStringSelection();
@@ -112,26 +117,24 @@ void mmCurrencyDialog::fillControls()
 {
     if (m_currency)
     {
+        m_currencyType->SetStringSelection(wxGetTranslation(m_currency->CURRENCY_TYPE));
+
         m_currencyName->ChangeValue(m_currency->CURRENCYNAME);
         m_currencySymbol->ChangeValue(m_currency->CURRENCY_SYMBOL);
 
         pfxTx_->ChangeValue(m_currency->PFX_SYMBOL);
         sfxTx_->ChangeValue(m_currency->SFX_SYMBOL);
-        decTx_->ChangeValue(m_currency->DECIMAL_POINT);
+
+        const wxString& decimal_separator = wxString::FromAscii(wxNumberFormatter::GetDecimalSeparator());
+        const wxString& ds = m_currency->DECIMAL_POINT.empty() ? decimal_separator : m_currency->DECIMAL_POINT;
+        decTx_->ChangeValue(ds);
         grpTx_->ChangeValue(m_currency->GROUP_SEPARATOR);
-        unitTx_->ChangeValue(m_currency->UNIT_NAME);
-        centTx_->ChangeValue(m_currency->CENT_NAME);
+
         m_scale = log10(m_currency->SCALE);
         const wxString& scale_value = wxString::Format("%i", m_scale);
         scaleTx_->ChangeValue(scale_value);
-        bool baseCurrency = (Option::instance().BaseCurrency() == m_currency->CURRENCYID);
-        baseConvRate_->SetValue((baseCurrency ? 1.00 : m_currency->BASECONVRATE), SCALE);
-        baseConvRate_->Enable(!baseCurrency);
         m_currencySymbol->ChangeValue(m_currency->CURRENCY_SYMBOL);
-    }
-    else
-    {
-        baseConvRate_->SetValue(1.00, SCALE);
+        m_historic->SetValue(Model_Currency::BoolOf(m_currency->HISTORIC));
     }
 }
 
@@ -145,22 +148,26 @@ void mmCurrencyDialog::CreateControls()
     itemBoxSizer2->Add(itemFlexGridSizer3, g_flagsV);
 
     //--------------------------
-    itemFlexGridSizer3->Add(new wxStaticText(this, wxID_STATIC, _("Currency Name")), g_flagsH);
+    wxStaticText* type_label = new wxStaticText(this, wxID_STATIC, _("Currency Type"));
+    itemFlexGridSizer3->Add(type_label, g_flagsH);
+    type_label->SetFont(this->GetFont().Bold());
+    m_currencyType = new wxChoice(this, ID_DIALOG_CURRENCY, wxDefaultPosition, wxSize(220, -1));
+    for (const auto& type : Model_Currency::instance().all_currency_types())
+        m_currencyType->Append(wxGetTranslation(type), new wxStringClientData(type));
+    itemFlexGridSizer3->Add(m_currencyType, g_flagsH);
+
+    wxStaticText* name_label = new wxStaticText(this, wxID_STATIC, _("Currency Name"));
+    itemFlexGridSizer3->Add(name_label, g_flagsH);
+    name_label->SetFont(this->GetFont().Bold());
     m_currencyName = new mmTextCtrl(this, ID_DIALOG_CURRENCY, "", wxDefaultPosition, wxSize(220, -1));
     itemFlexGridSizer3->Add(m_currencyName, g_flagsH);
 
-    itemFlexGridSizer3->Add(new wxStaticText(this, wxID_STATIC, _("Currency Symbol")), g_flagsH);
+    wxStaticText* symbol_label = new wxStaticText(this, wxID_STATIC, _("Currency Symbol"));
+    itemFlexGridSizer3->Add(symbol_label, g_flagsH);
+    symbol_label->SetFont(this->GetFont().Bold());
     m_currencySymbol = new mmTextCtrl(this, ID_DIALOG_CURRENCY, "", wxDefaultPosition, wxSize(220, -1));
     m_currencySymbol->SetMaxLength(3);
     itemFlexGridSizer3->Add(m_currencySymbol, g_flagsExpand);
-
-    itemFlexGridSizer3->Add(new wxStaticText(this, wxID_STATIC, _("Unit Name")), g_flagsH);
-    unitTx_ = new wxTextCtrl(this, ID_DIALOG_CURRENCY, "");
-    itemFlexGridSizer3->Add(unitTx_, g_flagsExpand);
-
-    itemFlexGridSizer3->Add(new wxStaticText(this, wxID_STATIC, _("Cents Name")), g_flagsH);
-    centTx_ = new wxTextCtrl(this, ID_DIALOG_CURRENCY, "");
-    itemFlexGridSizer3->Add(centTx_, g_flagsExpand);
 
     itemFlexGridSizer3->Add(new wxStaticText(this, wxID_STATIC, _("Prefix Symbol")), g_flagsH);
     pfxTx_ = new wxTextCtrl(this, ID_DIALOG_CURRENCY, "");
@@ -170,36 +177,44 @@ void mmCurrencyDialog::CreateControls()
     sfxTx_ = new wxTextCtrl(this, ID_DIALOG_CURRENCY, "");
     itemFlexGridSizer3->Add(sfxTx_, g_flagsExpand);
 
-    itemFlexGridSizer3->Add(new wxStaticText(this, wxID_STATIC, _("Decimal Char")), g_flagsH);
-    decTx_ = new wxTextCtrl(this, ID_DIALOG_CURRENCY, "");
+    wxTextValidator valid(wxFILTER_INCLUDE_CHAR_LIST);
+    wxArrayString chars;
+    chars.Add(".");
+    chars.Add(",");
+    valid.SetIncludes(chars);
+
+    wxStaticText* decimal_label = new wxStaticText(this, wxID_STATIC, _("Decimal Char"));
+    itemFlexGridSizer3->Add(decimal_label, g_flagsH);
+    decimal_label->SetFont(this->GetFont().Bold());
+    decTx_ = new wxTextCtrl(this, ID_DIALOG_CURRENCY, "", wxDefaultPosition, wxDefaultSize, 0L, valid);
+    decTx_->SetMaxLength(1);
     itemFlexGridSizer3->Add(decTx_, g_flagsExpand);
 
+    chars.Add(" ");
+    valid.SetIncludes(chars);
     itemFlexGridSizer3->Add(new wxStaticText(this, wxID_STATIC, _("Grouping Char")), g_flagsH);
-    grpTx_ = new wxTextCtrl(this, ID_DIALOG_CURRENCY, "");
+    grpTx_ = new wxTextCtrl(this, ID_DIALOG_CURRENCY, "", wxDefaultPosition, wxDefaultSize, 0L, valid);
+    grpTx_->SetMaxLength(1);
     itemFlexGridSizer3->Add(grpTx_, g_flagsExpand);
 
-    wxIntegerValidator<int> valInt(&m_scale,
-        wxNUM_VAL_THOUSANDS_SEPARATOR | wxNUM_VAL_ZERO_AS_BLANK);
+    wxIntegerValidator<int> valInt(&m_scale, wxNUM_VAL_THOUSANDS_SEPARATOR | wxNUM_VAL_ZERO_AS_BLANK);
     valInt.SetMin(0); // Only allow positive numbers
     valInt.SetMax(SCALE);
     itemFlexGridSizer3->Add(new wxStaticText(this, wxID_STATIC, _("Scale")), g_flagsH);
-    scaleTx_ = new wxTextCtrl(this, ID_DIALOG_CURRENCY, "", wxDefaultPosition, wxDefaultSize
-        , wxALIGN_RIGHT, valInt);
+    scaleTx_ = new wxTextCtrl(this, ID_DIALOG_CURRENCY, "", wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT, valInt);
     itemFlexGridSizer3->Add(scaleTx_, g_flagsExpand);
 
-    itemFlexGridSizer3->Add(new wxStaticText(this, wxID_STATIC, _("Conversion to Base Rate")), g_flagsH);
-    baseConvRate_ = new mmTextCtrl(this, ID_DIALOG_CURRENCY_RATE, ""
-        , wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT | wxTE_PROCESS_ENTER
-        , mmCalcValidator());
-    itemFlexGridSizer3->Add(baseConvRate_, g_flagsExpand);
+    itemFlexGridSizer3->Add(new wxStaticText(this, wxID_STATIC, _("Historic currency")), g_flagsH);
+    m_historic = new wxCheckBox(this, ID_DIALOG_CURRENCY, "", wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT | wxCHK_2STATE);
+    itemFlexGridSizer3->Add(m_historic, g_flagsExpand);
 
     //--------------------------
-    wxStaticBox* itemStaticBox_01 = new wxStaticBox(this, wxID_STATIC, _("Value Display Sample:"));
-    wxStaticBoxSizer* itemStaticBoxSizer_01 = new wxStaticBoxSizer(itemStaticBox_01, wxHORIZONTAL);
-    itemBoxSizer2->Add(itemStaticBoxSizer_01, g_flagsExpand);
+    wxStaticBox* sb01 = new wxStaticBox(this, wxID_STATIC, _("Value Display Sample:"));
+    wxStaticBoxSizer* sbs01 = new wxStaticBoxSizer(sb01, wxHORIZONTAL);
+    itemBoxSizer2->Add(sbs01, g_flagsExpand);
 
-    sampleText_ = new wxStaticText(this, wxID_STATIC, "");
-    itemStaticBoxSizer_01->Add(sampleText_, g_flagsH);
+    m_sample_text = new wxStaticText(this, wxID_STATIC, "");
+    sbs01->Add(m_sample_text, g_flagsH);
 
     //--------------------------
     wxBoxSizer* itemBoxSizer22 = new wxBoxSizer(wxHORIZONTAL);
@@ -214,57 +229,55 @@ void mmCurrencyDialog::CreateControls()
     itemButton25->SetToolTip(_("Any changes will be lost without update"));
 }
 
-void mmCurrencyDialog::OnOk(wxCommandEvent& /*event*/)
+void mmCurrencyDialog::OnOk(wxCommandEvent& WXUNUSED(event))
 {
+    const int type = m_currencyType->GetSelection();
+    if (type == -1)
+        return mmErrorDialogs::InvalidChoice(m_currencyType);
+
     const wxString name = m_currencyName->GetValue().Trim();
     if (name.empty())
         return mmErrorDialogs::InvalidName(m_currencyName);
 
-    const auto &currency_name = Model_Currency::instance().find(Model_Currency::CURRENCYNAME(name));
-    if (!currency_name.empty() && m_currency->CURRENCYID == -1)
-        return mmErrorDialogs::InvalidName(m_currencyName, true);
+    const wxString symbol = m_currencySymbol->GetValue().Trim();
+    if (name.empty() || symbol.empty())
+        return mmErrorDialogs::InvalidName(m_currencySymbol);
 
-    const auto currency_symb = Model_Currency::instance().find(Model_Currency::CURRENCY_SYMBOL(m_currencyName->GetValue()));
+    const auto currency_symb = Model_Currency::instance().find(Model_Currency::CURRENCY_SYMBOL(symbol));
     if (!currency_symb.empty() && m_currency->CURRENCYID == -1)
         return mmErrorDialogs::InvalidSymbol(m_currencySymbol, true);
-
-    if (baseConvRate_->Calculate(SCALE))
-        baseConvRate_->GetDouble(m_currency->BASECONVRATE);
-    if (!baseConvRate_->checkValue(m_currency->BASECONVRATE))
-        return;
     
+    if (m_currency->DECIMAL_POINT.empty() || !wxString(".,").Contains(m_currency->DECIMAL_POINT))
+        return mmErrorDialogs::ToolTip4Object(decTx_, _("Invalid Entry"), _("Decimal Char"));
+
+    if ((m_currency->GROUP_SEPARATOR == m_currency->DECIMAL_POINT) || (!wxString(" .,").Contains(m_currency->GROUP_SEPARATOR)))
+        return mmErrorDialogs::ToolTip4Object(grpTx_, _("Invalid Entry"), _("Grouping Char"));
+
     Model_Currency::instance().save(m_currency);
     EndModal(wxID_OK);
 }
 
- void mmCurrencyDialog::OnCancel(wxCommandEvent& /*event*/)
+ void mmCurrencyDialog::OnCancel(wxCommandEvent& WXUNUSED(event))
 {
     EndModal(wxID_CANCEL);
 }
 
-void mmCurrencyDialog::OnTextChanged(wxCommandEvent& event)
+void mmCurrencyDialog::OnTextChanged(wxCommandEvent& WXUNUSED(event))
 {  
     int scale = wxAtoi(scaleTx_->GetValue());
     m_currency->PFX_SYMBOL = pfxTx_->GetValue();
     m_currency->SFX_SYMBOL = sfxTx_->GetValue();
     m_currency->DECIMAL_POINT = decTx_->GetValue();
     m_currency->GROUP_SEPARATOR = grpTx_->GetValue();
-    m_currency->UNIT_NAME = unitTx_->GetValue();
-    m_currency->CENT_NAME = centTx_->GetValue();
     m_currency->SCALE = static_cast<int>(pow(10, scale));
-    m_currency->CURRENCY_SYMBOL = m_currencySymbol->GetValue().Trim();
+    m_currency->CURRENCY_SYMBOL = m_currencySymbol->GetValue().Trim().Upper();
     m_currency->CURRENCYNAME = m_currencyName->GetValue();
+    const int type_selection = m_currencyType->GetSelection();
+    m_currency->CURRENCY_TYPE = type_selection != -1 ? Model_Currency::currtype_desc(type_selection) : "";
+    m_currency->HISTORIC = m_historic->GetValue() ? 1 : 0;
 
-    wxString dispAmount = "";
     double base_amount = 123456.78;
-
-    dispAmount = wxString::Format(_("%.2f Shown As: %s"), base_amount
+    const wxString& dispAmount = wxString::Format(_("%s Shown As: %s"), wxString::FromCDouble(base_amount, 2)
         , Model_Currency::toCurrency(base_amount, m_currency));
-    sampleText_->SetLabelText(dispAmount);
-}
-
-void mmCurrencyDialog::OnTextEntered(wxCommandEvent& event)
-{
-    if (baseConvRate_->Calculate(SCALE))
-        baseConvRate_->GetDouble(m_currency->BASECONVRATE);
+    m_sample_text->SetLabelText(dispAmount);
 }

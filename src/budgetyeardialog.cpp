@@ -1,5 +1,6 @@
 /*******************************************************
  Copyright (C) 2006 Madhan Kanagavel
+ Copyright (C) 2017 James Higley
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -21,7 +22,7 @@
 #include "util.h"
 #include "paths.h"
 #include "constants.h"
-#include "model/Model_Budgetyear.h"
+#include "Model_Budgetyear.h"
 
 wxIMPLEMENT_DYNAMIC_CLASS(mmBudgetYearDialog, wxDialog);
 
@@ -35,13 +36,10 @@ wxEND_EVENT_TABLE()
 mmBudgetYearDialog::mmBudgetYearDialog( )
 : m_listBox()
 {
-    budgetYearID_ = -1;
 }
 
 mmBudgetYearDialog::mmBudgetYearDialog(wxWindow* parent)
 {
-    budgetYearID_ = -1;
-
     long style = wxCAPTION | wxSYSTEM_MENU | wxCLOSE_BOX;
     Create(parent, wxID_ANY, _("Budget Editor"), wxDefaultPosition, wxSize(500, 300), style);
 }
@@ -65,12 +63,10 @@ bool mmBudgetYearDialog::Create(wxWindow* parent, wxWindowID id,
 
 void mmBudgetYearDialog::fillControls()
 {
-    int index = 0;
     for (const auto& e: Model_Budgetyear::instance().all())
     {
         const wxString& payeeString = e.BUDGETYEARNAME;
-        int budgetYearID = e.BUDGETYEARID;
-        m_listBox->Insert(payeeString, index++, new mmListBoxItem(budgetYearID, payeeString));
+        m_listBox->Append(payeeString);
     }
 }
 
@@ -83,7 +79,7 @@ void mmBudgetYearDialog::CreateControls()
     itemBoxSizer2->Add(itemBoxSizer3, 0, wxGROW | wxALL, 5);
 
     m_listBox = new wxListBox(this, wxID_ANY
-        , wxDefaultPosition, wxSize(100, 200));
+        , wxDefaultPosition, wxSize(100, 200), 0, NULL, wxLB_SORT);
     itemBoxSizer3->Add(m_listBox, 1, wxGROW | wxALL, 1);
 
     wxBoxSizer* itemBoxSizer5 = new wxBoxSizer(wxHORIZONTAL);
@@ -121,7 +117,7 @@ void mmBudgetYearDialog::CreateControls()
     itemButtonCancel->SetFocus();
 }
 
-void mmBudgetYearDialog::OnAdd(wxCommandEvent& /*event*/)
+void mmBudgetYearDialog::OnAdd(wxCommandEvent& WXUNUSED(event))
 {
     mmBudgetYearEntryDialog dlg(this); 
     if ( dlg.ShowModal() == wxID_OK )
@@ -131,7 +127,7 @@ void mmBudgetYearDialog::OnAdd(wxCommandEvent& /*event*/)
     }
 }
  
-void mmBudgetYearDialog::OnAddMonth(wxCommandEvent& /*event*/)
+void mmBudgetYearDialog::OnAddMonth(wxCommandEvent& WXUNUSED(event))
 {
     mmBudgetYearEntryDialog dlg(this, true); 
     if ( dlg.ShowModal() == wxID_OK )
@@ -141,7 +137,7 @@ void mmBudgetYearDialog::OnAddMonth(wxCommandEvent& /*event*/)
     }
 }
 
-void mmBudgetYearDialog::OnDelete(wxCommandEvent& /*event*/)
+void mmBudgetYearDialog::OnDelete(wxCommandEvent& WXUNUSED(event))
 {
     wxString budgetYearString = m_listBox->GetStringSelection();
     int budgetYearID = Model_Budgetyear::instance().Get(budgetYearString);
@@ -150,7 +146,7 @@ void mmBudgetYearDialog::OnDelete(wxCommandEvent& /*event*/)
     fillControls();
 }
  
-void mmBudgetYearDialog::OnOk(wxCommandEvent& /*event*/)
+void mmBudgetYearDialog::OnOk(wxCommandEvent& WXUNUSED(event))
 {
     EndModal(wxID_OK);
 }

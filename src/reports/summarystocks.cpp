@@ -17,15 +17,17 @@
  ********************************************************/
 
 #include "summarystocks.h"
-#include "htmlbuilder.h"
+#include "reports/htmlbuilder.h"
 
 #include "constants.h"
 #include "stockspanel.h"
-#include "util.h"
-#include "model/Model_Account.h"
-#include "model/Model_Currency.h"
-#include "model/Model_StockHistory.h"
 #include "budget.h"
+#include "util.h"
+#include "reports/mmDateRange.h"
+#include "Model_Account.h"
+#include "Model_Currency.h"
+#include "Model_CurrencyHistory.h"
+#include "Model_StockHistory.h"
 
 #include <algorithm>
 
@@ -54,6 +56,8 @@ void  mmReportSummaryStocks::RefreshData()
 
     data_holder line;
     account_holder account;
+    const wxDate today = wxDate::Today();
+
     for (const auto& a : Model_Account::instance().all(Model_Account::COL_ACCOUNTNAME))
     {
         if (Model_Account::type(a) != Model_Account::INVESTMENT) continue;
@@ -68,9 +72,11 @@ void  mmReportSummaryStocks::RefreshData()
         for (const auto& stock : Model_Stock::instance().find(Model_Stock::HELDAT(a.ACCOUNTID)))
         {
             const Model_Currency::Data* currency = Model_Account::currency(a);
-            m_stock_balance += currency->BASECONVRATE * Model_Stock::CurrentValue(stock);
+            const double today_rate = Model_CurrencyHistory::getDayRate(currency->CURRENCYID, today);
+            m_stock_balance += today_rate * Model_Stock::CurrentValue(stock);
             account.gainloss += Model_Stock::CurrentValue(stock) - Model_Stock::InvestmentValue(stock);
-            m_gain_loss_sum_total += (Model_Stock::CurrentValue(stock) - Model_Stock::InvestmentValue(stock)) * currency->BASECONVRATE;
+            const double purchase_rate = Model_CurrencyHistory::getDayRate(currency->CURRENCYID, stock.PURCHASEDATE);
+            m_gain_loss_sum_total += (Model_Stock::CurrentValue(stock) * today_rate - Model_Stock::InvestmentValue(stock) * purchase_rate);
 
             line.name = stock.STOCKNAME;
             line.symbol = stock.SYMBOL;
@@ -162,8 +168,8 @@ wxString mmReportSummaryStocks::getHTMLText()
 
     hb.endDiv();
     hb.end();
-    Model_Report::outputReportFile(hb.getHTMLText());
-    return "";
+
+    return hb.getHTMLText();
 }
 
 void mmReportSummaryStocks::display_header(mmHTMLBuilder& hb) 
@@ -192,9 +198,9 @@ mmReportChartStocks::~mmReportChartStocks()
 {
 }
 
-bool mmReportChartStocks::has_date_range()
+int mmReportChartStocks::report_parameters()
 {
-    return true;
+    return RepParams::DATE_RANGE;
 }
 
 wxString mmReportChartStocks::getHTMLText()
@@ -203,13 +209,14 @@ wxString mmReportChartStocks::getHTMLText()
     hb.init();
     hb.addDivContainer();
     hb.addHeader(2, title());
+    hb.addDateNow();
 
     wxTimeSpan dtDiff = m_date_range->end_date() - m_date_range->start_date();
     if (m_date_range->is_with_date() && dtDiff.GetDays() <= 366)
         hb.DisplayDateHeading(m_date_range->start_date(), m_date_range->end_date(), true);
     hb.addHorizontalLine();
 
-    int count = 0, heldAt = -1;
+    int count = 0;
     bool pointDot = false, showGridLines = false;
     wxTimeSpan dist;
     wxDate precDateDt = wxInvalidDateTime;
@@ -236,7 +243,7 @@ wxString mmReportChartStocks::getHTMLText()
                 if (histData.size() <= 30)
                     val.label = mmGetDateForDisplay(hist.DATE);
                 else if (precDateDt.IsValid() && dateDt.GetMonth() != precDateDt.GetMonth())
-                    val.label = dateDt.GetMonthName(dateDt.GetMonth());
+                    val.label = dateDt.GetEnglishMonthName(dateDt.GetMonth());
                 else
                     val.label = "";
                 val.amount = hist.VALUE;
@@ -256,13 +263,11 @@ wxString mmReportChartStocks::getHTMLText()
             hb.endDiv();
         }
 
-        heldAt = stock.HELDAT;
         count++;
     }
 
     hb.endDiv();
     hb.end();
 
-    Model_Report::outputReportFile(hb.getHTMLText());
-    return "";
+    return hb.getHTMLText();
 }

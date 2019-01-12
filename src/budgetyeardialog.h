@@ -1,5 +1,6 @@
 /*******************************************************
  Copyright (C) 2006 Madhan Kanagavel
+ Copyright (C) 2017 James Higley
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -42,7 +43,7 @@ private:
     // utility functions
     void OnOk(wxCommandEvent& event);
     void OnAdd(wxCommandEvent& event);
-    void OnAddMonth(wxCommandEvent& /*event*/);
+    void OnAddMonth(wxCommandEvent& WXUNUSED(event));
     void OnDelete(wxCommandEvent& event);
     void OnBSelect(wxCommandEvent& event);
     void OnEdit(wxCommandEvent& event);
@@ -50,7 +51,6 @@ private:
     void OnDoubleClicked(wxCommandEvent& event);
 
     wxListBox* m_listBox;
-    int budgetYearID_;
     enum { ID_ADD_MONTH = wxID_HIGHEST + 300 };
 };
 

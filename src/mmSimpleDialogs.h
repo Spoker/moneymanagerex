@@ -1,5 +1,6 @@
 /*******************************************************
-Copyright (C) 2014 Nikolay & Gabriele-V
+Copyright (C) 2014 Gabriele-V
+Copyright (C) 2014 Nikolay Akimov
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,9 +20,12 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #ifndef MM_EX_MMSIMPLEDIALOGS_H_
 #define MM_EX_MMSIMPLEDIALOGS_H_
 
-#include "mmex.h"
-
-#include "model/Model_Account.h"
+#include <wx/choicdlg.h>
+#include <wx/dialog.h>
+#include "Model_Account.h"
+class wxComboBox;
+class wxTextCtrl;
+class wxChoice;
 
 class mmSingleChoiceDialog : public wxSingleChoiceDialog
 {
@@ -37,8 +41,20 @@ public:
     {
         return wxSingleChoiceDialog::ShowModal();
     }
-private:
-    void fix_translation();
+};
+
+class mmMultiChoiceDialog : public wxMultiChoiceDialog
+{
+public:
+    using wxMultiChoiceDialog::ShowModal;
+
+    mmMultiChoiceDialog();
+    mmMultiChoiceDialog(wxWindow* parent, const wxString& message,
+        const wxString& caption, const Model_Account::Data_Set& accounts);
+    int ShowModal()
+    {
+        return wxMultiChoiceDialog::ShowModal();
+    }
 };
 
 class mmDialogComboBoxAutocomplete : public wxDialog
@@ -48,10 +64,7 @@ public:
     mmDialogComboBoxAutocomplete(wxWindow *parent, const wxString& message, const wxString& caption,
         const wxString& defaultText, const wxArrayString& choices);
 
-    wxString getText()
-    {
-        return cbText_->GetValue();
-    };
+    wxString getText();
 
 private:
     bool Create(wxWindow* parent, wxWindowID id,
@@ -61,27 +74,26 @@ private:
     wxComboBox* cbText_;
 };
 
-class mmDialogs
-{
-public:
-    static const wxString mmSelectLanguage(mmGUIApp *app, wxWindow* window,
-        bool forced_show_dlg, bool save_setting = true);
-    static const wxString selectLanguageDlg(wxWindow *parent, const wxString &langPath, bool verbose);
-};
-
-class mmGUIApp;
 class mmErrorDialogs
 {
 public:
+    enum TOOL_TIP
+    {
+        MESSAGE_DROPDOWN_BOX,
+        MESSAGE_POPUP_BOX,
+    };
+
     static void MessageInvalid(wxWindow *parent, const wxString &message);
     static void MessageError(wxWindow *parent, const wxString &message, const wxString &title);
     static void MessageWarning(wxWindow *parent, const wxString &message, const wxString &title);
     static void InvalidCategory(wxWindow *button, bool simple = true);
-    static void InvalidAccount(wxWindow *object, bool transfer = false);
+    static void InvalidAccount(wxWindow *object, bool transfer = false, TOOL_TIP tm = MESSAGE_DROPDOWN_BOX);
     static void InvalidFile(wxWindow *object, bool open = false);
-    static void InvalidPayee(wxWindow *object);
+    static void InvalidPayee(wxWindow *object, TOOL_TIP tm = MESSAGE_DROPDOWN_BOX);
     static void InvalidName(wxTextCtrl *textBox, bool alreadyexist = false);
     static void InvalidSymbol(wxTextCtrl *textBox, bool alreadyexist = false);
     static void ToolTip4Object(wxWindow *object, const wxString &message, const wxString &title, int ico = wxICON_WARNING);
+    static void InvalidAmount(wxWindow *object);
+    static void InvalidChoice(wxChoice *choice);
 };
 #endif // MM_EX_MMSIMPLEDIALOGS_H_

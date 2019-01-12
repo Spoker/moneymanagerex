@@ -1,6 +1,7 @@
 /*******************************************************
  Copyright (C) 2006 Madhan Kanagavel
- Copyright (C) 2016 Nikolay & Stefano Giorgio
+ Copyright (C) 2016 Stefano Giorgio
+ Copyright (C) 2016 Nikolay Akimov
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -20,15 +21,19 @@
 #ifndef MM_EX_BDDIALOG_H_
 #define MM_EX_BDDIALOG_H_
 
-#include "defs.h"
-#include <wx/spinbutt.h>
 #include <wx/dialog.h>
-#include "mmtextctrl.h"
-#include "splittransactionsdialog.h"
-#include "model/Model_Budgetsplittransaction.h"
-#include "model/Model_Billsdeposits.h"
-
+#include "Model_Billsdeposits.h"
+#include "Model_Checking.h"
 class wxDatePickerCtrl;
+class wxSpinButton;
+class wxSpinEvent;
+class wxStaticText;
+class mmTextCtrl;
+class wxCalendarCtrl;
+class wxCalendarEvent;
+class wxCheckBox;
+class wxChoice;
+class wxBitmapButton;
 
 class mmBDDialog : public wxDialog
 {
@@ -102,7 +107,7 @@ private:
     wxDatePickerCtrl* m_date_due;       // Stored in ::TRANSDATE
     wxBitmapButton* m_apply_due_date;
     wxCalendarCtrl* m_calendar_ctrl;
-    wxChoice* itemRepeats_;
+    wxChoice* m_choice_repeat;
     wxCheckBox* itemCheckBoxAutoExeUserAck_;
     wxCheckBox* itemCheckBoxAutoExeSilent_;
     bool autoExecuteUserAck_;
@@ -115,13 +120,14 @@ private:
     int prevType_;
     std::vector<wxString> frequentNotes_;
 
-    wxString payeeWithdrawalTip_;
-    wxString amountNormalTip_;
-    wxString amountTransferTip_;
+    const wxString payeeWithdrawalTip_ = _("Specify where the transaction is going to");
+    const wxString payeeDepositTip_ = _("Specify where the transaction is coming from");
+    const wxString payeeTransferTip_ = _("Specify which account the transfer is going to");
+    const wxString amountNormalTip_ = _("Specify the amount for this transaction");
+    const wxString amountTransferTip_ = _("Specify the amount to be transferred");
     wxSpinButton* spinNextOccDate_;
     wxSpinButton* spinTransDate_;
 
-    void setToolTipsForType(Model_Billsdeposits::TYPE transType, bool enableAdvanced = false);
     void resetPayeeString();
     void setTooltips();
     void setCategoryLabel();
@@ -139,13 +145,14 @@ private:
 
     wxStaticText* staticTimesRepeat_;
     wxStaticText* staticTextRepeats_;
-    wxButton* m_btn_due_date;
+    wxBitmapButton* m_btn_due_date;
     void OnRepeatTypeChanged(wxCommandEvent& event);
     void OnsetNextRepeatDate(wxCommandEvent& event);
     void OnPeriodChange(wxCommandEvent& event);
     void setRepeatDetails();
 
     void activateSplitTransactionsDlg();
+    static const std::vector<std::pair<int, wxString> > BILLSDEPOSITS_REPEATS;
 
     enum
     {

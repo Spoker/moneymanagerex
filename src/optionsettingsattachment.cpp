@@ -65,7 +65,7 @@ void OptionSettingsAttachment::Create()
 
     wxStaticText* attachmentStaticText = new wxStaticText(this, wxID_STATIC, attachmentStaticText_desc);
     attachmentStaticBoxSizer->Add(attachmentStaticText, g_flagsV);
-    attachmentStaticText->SetToolTip(_("Every OS type (Win,Mac,Unix) has its attachment folder"));
+    attachmentStaticText->SetToolTip(_("Every OS type (Win, Mac, Unix) has its attachment folder"));
 
     wxBoxSizer* attachDefinedSizer = new wxBoxSizer(wxHORIZONTAL);
     attachmentStaticBoxSizer->Add(attachDefinedSizer);
@@ -99,10 +99,10 @@ void OptionSettingsAttachment::Create()
     wxStaticBoxSizer* attachmentStaticBoxSizerLegend = new wxStaticBoxSizer(attachmentStaticBoxLegend, wxVERTICAL);
     attachmentStaticBoxSizer->Add(attachmentStaticBoxSizerLegend, wxSizerFlags(g_flagsExpand).Proportion(0));
 
-    wxString legend = wxString::Format(_("%s -> User document directory"), ATTACHMENTS_FOLDER_DOCUMENTS);
-    legend += "\n" + wxString::Format(_("%s -> User profile folder"), ATTACHMENTS_FOLDER_USERPROFILE);
-    legend += "\n" + wxString::Format(_("%s -> Folder of.MMB database file"), ATTACHMENTS_FOLDER_DATABASE);
-    legend += "\n" + wxString::Format(_("%s -> MMEX Application data folder"), ATTACHMENTS_FOLDER_APPDATA);
+    wxString legend = ATTACHMENTS_FOLDER_DOCUMENTS + " -> " + _("User documents directory");
+    legend += "\n" + ATTACHMENTS_FOLDER_USERPROFILE + " -> " + _("User profile folder");
+    legend += "\n" + ATTACHMENTS_FOLDER_DATABASE + " -> " + _("Folder of .mmb database file");
+    legend += "\n" + ATTACHMENTS_FOLDER_APPDATA + " -> " + _("MMEX Application data folder");
     wxStaticText* legendStaticText = new wxStaticText(this, wxID_STATIC, legend);
     attachmentStaticBoxSizerLegend->Add(legendStaticText);
     //End legend
@@ -121,7 +121,7 @@ void OptionSettingsAttachment::Create()
     if (mmPlatformType() != "Win")
     {
         wxStaticText* attachmentFolderWinText = new wxStaticText(this
-            , wxID_STATIC, _("Windows folder -> ") + attachmentFolderWin.Left(50));
+            , wxID_STATIC, _("Windows folder") + " -> " + attachmentFolderWin.Left(50));
         attachmentFolderWinText->SetToolTip(attachmentFolderWin);
         attachmentStaticBoxSizerInfo->Add(attachmentFolderWinText);
     }
@@ -129,7 +129,7 @@ void OptionSettingsAttachment::Create()
     if (mmPlatformType() != "Mac")
     {
         wxStaticText* attachmentFolderMacText = new wxStaticText(this
-            , wxID_STATIC, _("Mac folder -> ") + attachmentFolderMac.Left(50));
+            , wxID_STATIC, _("Mac folder") + " -> " + attachmentFolderMac.Left(50));
         attachmentFolderMacText->SetToolTip(attachmentFolderMac);
         attachmentStaticBoxSizerInfo->Add(attachmentFolderMacText);
     }
@@ -137,7 +137,7 @@ void OptionSettingsAttachment::Create()
     if (mmPlatformType() != "Uni")
     {
         wxStaticText* attachmentFolderUnixText = new wxStaticText(this
-            , wxID_STATIC, _("Unix folder -> ") + attachmentFolderUnix.Left(50));
+            , wxID_STATIC, _("Unix folder") + " -> " + attachmentFolderUnix.Left(50));
         attachmentFolderUnixText->SetToolTip(attachmentFolderUnix);
         attachmentStaticBoxSizerInfo->Add(attachmentFolderUnixText);
     }
@@ -171,10 +171,10 @@ void OptionSettingsAttachment::Create()
     attachmentStaticBoxSizer->Add(m_trash_attachments, g_flagsV);
 }
 
-void OptionSettingsAttachment::OnAttachmentsButton(wxCommandEvent& /*event*/)
+void OptionSettingsAttachment::OnAttachmentsButton(wxCommandEvent& WXUNUSED(event))
 {
     wxMenu * attachmentsMenu = new wxMenu;
-    wxMenuItem* menuItem = new wxMenuItem(attachmentsMenu, wxID_HIGHEST, _("System documents directory"));
+    wxMenuItem* menuItem = new wxMenuItem(attachmentsMenu, wxID_HIGHEST, _("User documents directory"));
     attachmentsMenu->Append(menuItem);
     menuItem = new wxMenuItem(attachmentsMenu, wxID_HIGHEST + 1, _("Application data directory"));
     attachmentsMenu->Append(menuItem);
@@ -222,7 +222,7 @@ void OptionSettingsAttachment::OnAttachmentsMenu(wxCommandEvent& event)
     OnAttachmentsPathChanged(event);
 }
 
-void OptionSettingsAttachment::OnAttachmentsPathChanged(wxCommandEvent& event)
+void OptionSettingsAttachment::OnAttachmentsPathChanged(wxCommandEvent& WXUNUSED(event))
 {
     wxTextCtrl* att = (wxTextCtrl*) FindWindow(ID_DIALOG_OPTIONS_TEXTCTRL_ATTACHMENT);
     if (!att) return;

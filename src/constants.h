@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #pragma once
 
 #include "defs.h"
+#include "versions.h"
 //----------------------------------------------------------------------------
 
 class wxString;
@@ -49,39 +50,43 @@ const wxString getProgramName();
 const wxString getTitleProgramVersion();
 const wxString getProgramCopyright();
 const wxString getProgramDescription();
+const wxString getCaption(const wxString& caption);
 
+/*************************************************************************
+ MMEX_VERSION
+ Defined in versions.h and values taken from main CMakeLists.txt
+ For Internet Format for update checking read in util.cpp
+ *************************************************************************/
 namespace version
 {
-    extern const int Major;
-    extern const int Minor;
-    extern const int Patch;
-    extern const int Alpha;
-    extern const int Beta;
-    extern const int RC;
-    extern const wxString string;
-    extern const wxString generateProgramVersion
-        (int vMajor, int vMinor, int vPatch, int vAlpha, int vBeta, int vRC);
+    const int Major = MMEX_VERSION_MAJOR;
+    const int Minor = MMEX_VERSION_MINOR;
+    const int Patch = MMEX_VERSION_PATCH;
+    const wxString string = MMEX_VERSION_FULL;
 }
 
 namespace weblink
 {
     const wxString addReferralToURL(const wxString& BaseURL, const wxString& CampSource);
+    extern const wxString GA;
     extern const wxString WebSite;
-    extern const wxString Update;
-    extern const wxString UpdateLinks;
-    extern const wxString Changelog;
-    extern const wxString Download;
+    extern const wxString Releases;
     extern const wxString News;
     extern const wxString NewsRSS;
     extern const wxString Forum;
     extern const wxString Wiki;
+    extern const wxString GitHub;
+    extern const wxString YouTube;
+    extern const wxString Slack;
     extern const wxString BugReport;
     extern const wxString Donate;
+    extern const wxString SquareCashGuan;
     extern const wxString Twitter;
     extern const wxString Facebook;
     extern const wxString YahooQuotes;
     extern const wxString YahooQuotesHistory;
-    extern const wxString BceCurrencyHistory;
+    extern const wxString CoinCapHistory;
+    extern const wxString CoinCap;
     extern const wxString DefStockUrl;
     extern const wxString GooglePlay;
     extern const wxString WebApp;
@@ -100,6 +105,7 @@ extern const wxString VIEW_TRANS_CURRENT_YEAR_STR;
 extern const wxString VIEW_TRANS_CURRENT_FIN_YEAR_STR;
 extern const wxString VIEW_TRANS_LAST_YEAR_STR;
 extern const wxString VIEW_TRANS_LAST_FIN_YEAR_STR;
+extern const wxString VIEW_TRANS_SINCE_STATEMENT_STR;
 
 extern const wxString VIEW_ACCOUNTS_ALL_STR;
 extern const wxString VIEW_ACCOUNTS_OPEN_STR;

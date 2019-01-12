@@ -27,8 +27,10 @@ Copyright (C) 2012 Nikolay Akimov
 #include "relocatepayeedialog.h"
 #include "util.h"
 #include "webapp.h"
+#include <wx/srchctrl.h>
 
-#include "model/allmodel.h"
+#include "Model_Payee.h"
+#include "Model_Attachment.h"
 
 wxIMPLEMENT_DYNAMIC_CLASS(mmPayeeDialog, wxDialog);
 
@@ -47,9 +49,9 @@ wxEND_EVENT_TABLE()
 
 
 mmPayeeDialog::mmPayeeDialog(wxWindow *parent, bool payee_choose, const wxString &name) :
-    m_payee_id(-1)
+    payeeListBox_()
     , m_maskTextCtrl()
-    , payeeListBox_()
+    , m_payee_id(-1)
     , m_payee_rename(-1)
     , m_payee_choose(payee_choose)
     , refreshRequested_(false)
@@ -149,7 +151,7 @@ void mmPayeeDialog::fillControls()
     m_payee_id = firstInTheListPayeeID;
 }
 
-void mmPayeeDialog::OnDataEditStart(wxDataViewEvent& event)
+void mmPayeeDialog::OnDataEditStart(wxDataViewEvent& WXUNUSED(event))
 {
     m_payee_rename = m_payee_id;
 }
@@ -167,13 +169,10 @@ void mmPayeeDialog::OnDataChanged(wxDataViewEvent& event)
     const auto payees = Model_Payee::instance().find(Model_Payee::PAYEENAME(value));
     if (payees.empty())
     {
-        if (payee)
-        {
-            payee->PAYEENAME = value;
-            Model_Payee::instance().save(payee);
-            mmWebApp::MMEX_WebApp_UpdatePayee();
-            refreshRequested_ = true;
-        }
+        payee->PAYEENAME = value;
+        Model_Payee::instance().save(payee);
+        mmWebApp::MMEX_WebApp_UpdatePayee();
+        refreshRequested_ = true;
     }
     else
     {
@@ -192,7 +191,7 @@ void mmPayeeDialog::OnListItemSelected(wxDataViewEvent& event)
         m_payee_id = (int)payeeListBox_->GetItemData(item);
 }
 
-void mmPayeeDialog::OnListItemActivated(wxDataViewEvent& event)
+void mmPayeeDialog::OnListItemActivated(wxDataViewEvent& WXUNUSED(event))
 {
     if (m_payee_id > 0 && m_payee_choose)
         EndModal(wxID_OK);
@@ -268,7 +267,10 @@ void mmPayeeDialog::DeletePayee()
             return;
         }
         else
+        {
             mmAttachmentManage::DeleteAllAttachments(Model_Attachment::reftype_desc(Model_Attachment::PAYEE), m_payee_id);
+            mmWebApp::MMEX_WebApp_UpdatePayee();
+        }
 
         m_payee_id = -1;
         refreshRequested_ = true;
@@ -316,6 +318,7 @@ void mmPayeeDialog::OnPayeeRelocate()
             << "\n\n";
         wxMessageBox(msgStr, _("Payee Relocation Result"));
         refreshRequested_ = true;
+        fillControls(); // payee can be deleted
     }
 }
 
@@ -341,9 +344,9 @@ void mmPayeeDialog::OnMenuSelected(wxCommandEvent& event)
     }
 }
 
-void mmPayeeDialog::OnMagicButton(wxCommandEvent& event)
+void mmPayeeDialog::OnMagicButton(wxCommandEvent& WXUNUSED(event))
 {
-    wxDataViewEvent evt(wxEVT_NULL);
+    wxDataViewEvent evt;
     OnItemRightClick(evt);
 }
 
@@ -373,19 +376,21 @@ void mmPayeeDialog::OnItemRightClick(wxDataViewEvent& event)
 
     mainMenu->Append(new wxMenuItem(mainMenu, MENU_RELOCATE_PAYEE, _("Relocate Payee")));
     //SetToolTip(_("Change all transactions using one Payee to another Payee"));
-    if (!payee) mainMenu->Enable(MENU_RELOCATE_PAYEE, false);
+    if (!payee || payeeListBox_->GetItemCount() < 2
+        || !Model_Payee::is_used(m_payee_id))
+            mainMenu->Enable(MENU_RELOCATE_PAYEE, false);
 
     PopupMenu(mainMenu);
     delete mainMenu;
     event.Skip();
 }
 
-void mmPayeeDialog::OnCancel(wxCommandEvent& /*event*/)
+void mmPayeeDialog::OnCancel(wxCommandEvent& WXUNUSED(event))
 {
     EndModal(wxID_CANCEL);
 }
 
-void mmPayeeDialog::OnOk(wxCommandEvent& /*event*/)
+void mmPayeeDialog::OnOk(wxCommandEvent& WXUNUSED(event))
 {
     EndModal(wxID_OK);
 }

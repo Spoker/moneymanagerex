@@ -19,13 +19,14 @@
 #include "wizard_newaccount.h"
 #include "mmhomepagepanel.h"
 #include "../resources/addacctwiz.xpm"
+#include "option.h"
 //----------------------------------------------------------------------------
 
 mmAddAccountWizard::mmAddAccountWizard(wxFrame *frame)
     : wxWizard(frame,wxID_ANY,_("Add Account Wizard")
     , wxBitmap(addacctwiz_xpm), wxDefaultPosition
-    , wxDEFAULT_DIALOG_STYLE), acctID_(-1)
-    , currencyID_(-1), accountType_(0)
+    , wxDEFAULT_DIALOG_STYLE), currencyID_(-1)
+    , accountType_(0), acctID_(-1)
 {
     // a wizard page may be either an object of predefined class
     page1 = new wxWizardPageSimple(this);
@@ -128,7 +129,7 @@ mmAddAccountTypePage::mmAddAccountTypePage(mmAddAccountWizard *parent)
     wxString textMsg = "\n";
     textMsg << _("Select the type of account you want to create:") << "\n\n"
             << _("General bank accounts cover a wide variety of account\n"
-            "types like Checking, Savings and Credit card type accounts.");
+            "types like Checking, Savings etc.");
     mainSizer->Add(new wxStaticText(this, wxID_ANY, textMsg), 0, wxALL, 5);
 
     textMsg = "\n";

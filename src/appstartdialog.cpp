@@ -21,7 +21,7 @@
 #include "paths.h"
 #include "constants.h"
 #include "option.h"
-#include "model/Model_Setting.h"
+#include "Model_Setting.h"
 
 #include "../resources/money.xpm"
 
@@ -41,19 +41,19 @@ wxEND_EVENT_TABLE()
 
 mmAppStartDialog::mmAppStartDialog(wxWindow* parent, const wxString& name)
     : itemCheckBox(nullptr)
-    , m_buttonExit(nullptr)
     , m_buttonClose(nullptr)
+    , m_buttonExit(nullptr)
 {
-    wxString caption = wxString::Format(_("%1$s - %2$s"), mmex::getProgramName(), mmex::getTitleProgramVersion());
     long style = wxCAPTION | wxSYSTEM_MENU | wxCLOSE_BOX;
-    Create(parent, wxID_ANY, caption, wxDefaultPosition, wxSize(400, 300), style, name);
+    Create(parent, wxID_ANY, mmex::getCaption(mmex::getTitleProgramVersion()),
+        wxDefaultPosition, wxSize(400, 300), style, name);
 }
 
 bool mmAppStartDialog::Create(wxWindow* parent, wxWindowID id, const wxString& caption
     , const wxPoint& pos, const wxSize& size, long style, const wxString& name)
 {
     SetExtraStyle(GetExtraStyle()|wxWS_EX_BLOCK_EVENTS);
-    bool ok = wxDialog::Create(parent, id, caption, pos, size, style);
+    bool ok = wxDialog::Create(parent, id, caption, pos, size, style, name);
 
     if (ok) {
         SetIcon(mmex::getProgramIcon());
@@ -150,7 +150,7 @@ void mmAppStartDialog::CreateControls()
     }
     else
     {
-        itemButton61->SetToolTip(wxString::Format(_("Open the previously opened database : %s"), val));
+        itemButton61->SetToolTip(wxString::Format(_("Open the previously opened database: %s"), val));
     }
 }
 
@@ -160,16 +160,14 @@ void mmAppStartDialog::SetCloseButtonToExit()
     m_buttonExit->Show(true);
 }
 
-void mmAppStartDialog::OnButtonAppstartHelpClick( wxCommandEvent& /*event*/ )
+void mmAppStartDialog::OnButtonAppstartHelpClick( wxCommandEvent& WXUNUSED(event) )
 {
     int helpFileIndex_ = mmex::HTML_INDEX;
     wxFileName helpIndexFile(mmex::getPathDoc((mmex::EDocFile)helpFileIndex_));
     wxString url = "file://";
 
-    if (Option::instance().Language() != "english" && Option::instance().Language() != "")
-    {
-        helpIndexFile.AppendDir(Option::instance().Language());
-    }
+    if (Option::instance().LanguageISO6391() != "en")
+        helpIndexFile.AppendDir(Option::instance().LanguageISO6391());
 
     if (helpIndexFile.FileExists()) // Load the help file for the given language
     {
@@ -182,27 +180,27 @@ void mmAppStartDialog::OnButtonAppstartHelpClick( wxCommandEvent& /*event*/ )
     wxLaunchDefaultBrowser(url);
 }
 
-void mmAppStartDialog::OnButtonAppstartWebsiteClick( wxCommandEvent& /*event*/ )
+void mmAppStartDialog::OnButtonAppstartWebsiteClick( wxCommandEvent& WXUNUSED(event) )
 {
     wxLaunchDefaultBrowser(mmex::weblink::WebSite);
 }
 
-void mmAppStartDialog::OnButtonAppstartLastDatabaseClick( wxCommandEvent& /*event*/ )
+void mmAppStartDialog::OnButtonAppstartLastDatabaseClick( wxCommandEvent& WXUNUSED(event) )
 {
     EndModal(wxID_FILE1);
 }
 
-void mmAppStartDialog::OnButtonAppstartOpenDatabaseClick( wxCommandEvent& /*event*/ )
+void mmAppStartDialog::OnButtonAppstartOpenDatabaseClick( wxCommandEvent& WXUNUSED(event) )
 {
     EndModal(wxID_OPEN);
 }
 
-void mmAppStartDialog::OnQuit(wxCommandEvent& /*event*/)
+void mmAppStartDialog::OnQuit(wxCommandEvent& WXUNUSED(event))
 {
     EndModal(wxID_EXIT);
 }
 
-void mmAppStartDialog::OnClose(wxCloseEvent& /*event*/)
+void mmAppStartDialog::OnClose(wxCloseEvent& WXUNUSED(event))
 {
     if (m_buttonExit->IsShown())
         EndModal(wxID_EXIT);
@@ -210,7 +208,7 @@ void mmAppStartDialog::OnClose(wxCloseEvent& /*event*/)
         EndModal(wxID_OK);
 }
 
-void mmAppStartDialog::OnButtonAppstartNewDatabaseClick( wxCommandEvent& /*event*/ )
+void mmAppStartDialog::OnButtonAppstartNewDatabaseClick( wxCommandEvent& WXUNUSED(event) )
 {
     EndModal(wxID_NEW);
 }

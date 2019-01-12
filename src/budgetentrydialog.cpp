@@ -17,11 +17,11 @@
  ********************************************************/
 
 #include "budgetentrydialog.h"
-#include "model/Model_Category.h"
+#include "Model_Category.h"
 #include "validators.h"
 #include "paths.h"
-#include <constants.h>
-#include <wx/valnum.h>
+#include "constants.h"
+#include "mmTextCtrl.h"
 
 wxIMPLEMENT_DYNAMIC_CLASS(mmBudgetEntryDialog, wxDialog);
 
@@ -38,11 +38,11 @@ mmBudgetEntryDialog::mmBudgetEntryDialog(wxWindow* parent
     , Model_Budget::Data* entry
     , const wxString& categoryEstimate
     , const wxString& CategoryActual)
-    : catEstimateAmountStr_(categoryEstimate)
-    , catActualAmountStr_(CategoryActual)
-    , m_choiceItem()
+    : m_choiceItem()
     , m_textAmount()
     , m_choiceType()
+    , catEstimateAmountStr_(categoryEstimate)
+    , catActualAmountStr_(CategoryActual)
 {
     budgetEntry_ = entry;
     long style = wxCAPTION | wxSYSTEM_MENU | wxCLOSE_BOX;

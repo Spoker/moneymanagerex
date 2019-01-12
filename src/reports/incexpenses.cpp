@@ -1,5 +1,6 @@
 /*******************************************************
-Copyright (C) 2006-2012
+Copyright (C) 2006-2012 Madhan Kanagavel
+Copyright (C) 2017 James Higley
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,16 +19,17 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include "incexpenses.h"
 
-#include "htmlbuilder.h"
+#include "reports/htmlbuilder.h"
 #include "util.h"
+#include "reports/mmDateRange.h"
 
-#include "model/Model_Account.h"
-#include "model/Model_Checking.h"
-#include "model/Model_CurrencyHistory.h"
+#include "Model_Account.h"
+#include "Model_Checking.h"
+#include "Model_CurrencyHistory.h"
 
 
 mmReportIncomeExpenses::mmReportIncomeExpenses()
-    : mmPrintableBaseSpecificAccounts(_("Income vs Expenses"))
+    : mmPrintableBase(_("Income vs Expenses"))
 {
 }
 
@@ -35,9 +37,9 @@ mmReportIncomeExpenses::~mmReportIncomeExpenses()
 {
 }
 
-bool mmReportIncomeExpenses::has_date_range()
+int mmReportIncomeExpenses::report_parameters()
 {
-    return true;
+    return RepParams::DATE_RANGE | RepParams::ACCOUNTS_LIST;
 }
 
 wxString mmReportIncomeExpenses::getHTMLText()
@@ -68,8 +70,9 @@ wxString mmReportIncomeExpenses::getHTMLText()
     hb.init();
     hb.addDivContainer();
     hb.addHeader(2, this->title());
-    hb.DisplayDateHeading(m_date_range->start_date(), m_date_range->end_date(), m_date_range->is_with_date());
     hb.addDateNow();
+    hb.DisplayDateHeading(m_date_range->start_date(), m_date_range->end_date(), m_date_range->is_with_date());
+    hb.addHeader(3, headerMsg);
 
     std::pair<double, double> income_expenses_pair;
     for (const auto& transaction : Model_Checking::instance().find(
@@ -81,13 +84,14 @@ wxString mmReportIncomeExpenses::getHTMLText()
         if (Model_Checking::foreignTransactionAsTransfer(transaction))
             continue;
 
-        // We got this far, get the currency conversion rate for this account
         Model_Account::Data *account = Model_Account::instance().get(transaction.ACCOUNTID);
         if (accountArray_)
         {
-            if (wxNOT_FOUND == accountArray_->Index(account->ACCOUNTNAME)) continue;
+            if (!account || wxNOT_FOUND == accountArray_->Index(account->ACCOUNTNAME))
+                continue;
         }
         double convRate = 1;
+        // We got this far, get the currency conversion rate for this account
         if (account) convRate = Model_CurrencyHistory::getDayRate(Model_Account::currency(account)->CURRENCYID,transaction.TRANSDATE);
 
         if (Model_Checking::type(transaction) == Model_Checking::DEPOSIT)
@@ -150,28 +154,11 @@ wxString mmReportIncomeExpenses::getHTMLText()
     hb.endDiv();
     hb.end();
 
-    Model_Report::outputReportFile(hb.getHTMLText());
-    return "";
-}
-
-mmReportIncomeExpensesSpecificAccounts::mmReportIncomeExpensesSpecificAccounts()
-    : mmReportIncomeExpenses()
-{
-}
-
-mmReportIncomeExpensesSpecificAccounts::~mmReportIncomeExpensesSpecificAccounts()
-{
-}
-
-wxString mmReportIncomeExpensesSpecificAccounts::getHTMLText()
-{
-    if (m_initial)
-        getSpecificAccounts();
-    return mmReportIncomeExpenses::getHTMLText();
+    return hb.getHTMLText();
 }
 
 mmReportIncomeExpensesMonthly::mmReportIncomeExpensesMonthly()
-    : mmPrintableBaseSpecificAccounts(_("Income vs Expenses"))
+    : mmPrintableBase(_("Income vs Expenses"))
 {
 }
 
@@ -179,9 +166,9 @@ mmReportIncomeExpensesMonthly::~mmReportIncomeExpensesMonthly()
 {
 }
 
-bool mmReportIncomeExpensesMonthly::has_date_range()
+int mmReportIncomeExpensesMonthly::report_parameters()
 {
-    return true;
+    return RepParams::DATE_RANGE | RepParams::ACCOUNTS_LIST;
 }
 
 wxString mmReportIncomeExpensesMonthly::getHTMLText()
@@ -193,20 +180,14 @@ wxString mmReportIncomeExpensesMonthly::getHTMLText()
     }
     else
     {
-        int arrIdx = 0;
         if ((int)accountArray_->size() == 0)
             headerMsg << "?";
 
-        if (!accountArray_->empty())
-        {
-            headerMsg << accountArray_->Item(arrIdx);
-            arrIdx++;
+        for (const auto& entry : *accountArray_)
+        { 
+            headerMsg << entry << ", ";
         }
-        while (arrIdx < (int)accountArray_->size())
-        {
-            headerMsg << ", " << accountArray_->Item(arrIdx);
-            arrIdx++;
-        }
+        if (headerMsg.Mid(headerMsg.size() - 2, 2) == ", ") headerMsg.RemoveLast(2);
     }
 
     std::map<int, std::pair<double, double> > incomeExpensesStats;
@@ -216,13 +197,14 @@ wxString mmReportIncomeExpensesMonthly::getHTMLText()
         , Model_Checking::TRANSDATE(m_date_range->end_date(), LESS_OR_EQUAL)
         , Model_Checking::STATUS(Model_Checking::VOID_, NOT_EQUAL)))
     {
-        // We got this far, get the currency conversion rate for this account
         Model_Account::Data *account = Model_Account::instance().get(transaction.ACCOUNTID);
         if (accountArray_)
         {
-            if (wxNOT_FOUND == accountArray_->Index(account->ACCOUNTNAME)) continue;
+            if (!account || wxNOT_FOUND == accountArray_->Index(account->ACCOUNTNAME))
+                continue;
         }
         double convRate = 1;
+        // We got this far, get the currency conversion rate for this account
         if (account) convRate = Model_CurrencyHistory::getDayRate(Model_Account::currency(account)->CURRENCYID, transaction.TRANSDATE);
 
         int idx = (Model_Checking::TRANSDATE(transaction).GetYear() * 100
@@ -238,6 +220,7 @@ wxString mmReportIncomeExpensesMonthly::getHTMLText()
     hb.init();
     hb.addDivContainer();
     hb.addHeader(2, this->title());
+    hb.addDateNow();
     hb.DisplayDateHeading(m_date_range->start_date(), m_date_range->end_date(), m_date_range->is_with_date());
     hb.addHeader(3, headerMsg);
     hb.addLineBreak();
@@ -291,22 +274,5 @@ wxString mmReportIncomeExpensesMonthly::getHTMLText()
     hb.endDiv(); 
     hb.end();
 
-    Model_Report::outputReportFile(hb.getHTMLText());
-    return "";
-}
-
-mmReportIncomeExpensesMonthlySpecificAccounts::mmReportIncomeExpensesMonthlySpecificAccounts()
-    : mmReportIncomeExpensesMonthly()
-{
-}
-
-mmReportIncomeExpensesMonthlySpecificAccounts::~mmReportIncomeExpensesMonthlySpecificAccounts()
-{
-}
-
-wxString mmReportIncomeExpensesMonthlySpecificAccounts::getHTMLText()
-{
-    if (m_initial)
-        getSpecificAccounts();
-    return mmReportIncomeExpensesMonthly::getHTMLText();
+    return hb.getHTMLText();
 }

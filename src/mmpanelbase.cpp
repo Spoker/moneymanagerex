@@ -18,7 +18,11 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ********************************************************/
 
 #include "mmpanelbase.h"
-#include "model/Model_Setting.h"
+#include "Model_Setting.h"
+#include "mmreportspanel.h"
+#include "reports/reportbase.h"
+#include "util.h"
+#include <wx/webviewfshandler.h>
 
 wxBEGIN_EVENT_TABLE(mmListCtrl, wxListCtrl)
 EVT_LIST_COL_END_DRAG(wxID_ANY, mmListCtrl::OnItemResize)
@@ -35,8 +39,8 @@ mmListCtrl::mmListCtrl(wxWindow *parent, wxWindowID winid)
     , m_selected_row(-1)
     , m_selected_col(0)
     , m_asc(true)
-    , m_ColumnHeaderNbr(-1)
     , m_default_sort_column(-1)
+    , m_ColumnHeaderNbr(-1)
 {
 }
 
@@ -107,7 +111,7 @@ void mmListCtrl::OnItemResize(wxListEvent& event)
         Model_Setting::instance().Set(wxString::Format(m_col_width, i), width);
 }
 
-void mmListCtrl::OnColClick(wxListEvent& event)
+void mmListCtrl::OnColClick(wxListEvent& WXUNUSED(event))
 {
     // Default to do nothing and implement in derived class
 }
@@ -155,7 +159,7 @@ void mmListCtrl::PopupSelected(wxCommandEvent& event)
     }
 }
 
-void mmListCtrl::OnHeaderHide(wxCommandEvent& event)
+void mmListCtrl::OnHeaderHide(wxCommandEvent& WXUNUSED(event))
 {
     if (m_ColumnHeaderNbr >= 0 && !m_col_width.IsEmpty())
     {
@@ -165,14 +169,14 @@ void mmListCtrl::OnHeaderHide(wxCommandEvent& event)
     }
 }
 
-void mmListCtrl::OnHeaderSort(wxCommandEvent& event)
+void mmListCtrl::OnHeaderSort(wxCommandEvent& WXUNUSED(event))
 {
     wxListEvent e;
     e.SetId(MENU_HEADER_SORT);
     OnColClick(e);
 }
 
-void mmListCtrl::OnHeaderReset(wxCommandEvent& event)
+void mmListCtrl::OnHeaderReset(wxCommandEvent& WXUNUSED(event))
 {
     wxString parameter_name;
     for (int i = 0; i < (int)m_columns.size(); i++)
@@ -219,6 +223,20 @@ void mmListCtrl::SetColumnWidthSetting(int column_number, int column_width)
         Model_Setting::instance().Set(wxString::Format(m_col_width, column_number), column_width);
 }
 
+std::vector<long> mmListCtrl::GetSelected() {
+	std::vector<long> selected = std::vector<long>();
+	long item = -1;
+
+	for ( ;; )
+	{
+		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);    
+		if (item == -1) break;
+		else selected.push_back(item);
+	}
+
+	return selected;
+}
+
 mmPanelBase::mmPanelBase()
 {
 }
@@ -229,7 +247,8 @@ mmPanelBase::~mmPanelBase()
 
 wxString mmPanelBase::BuildPage() const
 {
-    return "TBD";
+    mmReportsPanel* rp = wxStaticCast(this, mmReportsPanel);
+    return rp ? rp->getPrintableBase()->getHTMLText() : "TBD";
 }
 
 void mmPanelBase::PrintPage()
@@ -245,12 +264,5 @@ void mmPanelBase::PrintPage()
 
 void mmPanelBase::windowsFreezeThaw()
 {
-#ifdef __WXGTK__
-    return;
-#endif
-
-    if (this->IsFrozen())
-        this->Thaw();
-    else
-        this->Freeze();
+    ::windowsFreezeThaw(this);
 }

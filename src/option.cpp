@@ -1,5 +1,7 @@
 /*******************************************************
  Copyright (C) 2006 Madhan Kanagavel
+ Copyright (C) 2016 - 2017 Stefano Giorgio [stef145g]
+ Copyright (C) 2017 James Higley
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -21,17 +23,78 @@
 #include "constants.h"
 #include "images_list.h"
 #include "singleton.h"
-#include "model/Model_Infotable.h"
-#include "model/Model_Setting.h"
-#include "model/Model_Account.h"
 #include "maincurrencydialog.h"
-#include "model/Model_Currency.h"
-#include "model/Model_CurrencyHistory.h"
+#include "Model_Infotable.h"
+#include "Model_Setting.h"
+#include "Model_Account.h"
+#include "Model_Currency.h"
+#include "Model_CurrencyHistory.h"
+#include "reports/myusage.h"
+#include "reports/summary.h"
+#include "reports/categexp.h"
+#include "reports/categovertimeperf.h"
+#include "reports/payee.h"
+#include "reports/incexpenses.h"
+#include "reports/budgetingperf.h"
+#include "reports/cashflow.h"
+#include "reports/budgetcategorysummary.h"
+#include "reports/summarystocks.h"
+#include "reports/forecast.h"
+
+struct Option::ReportInfo
+{
+    enum Reports {
+        MyUsage = 0,
+        MonthlySummaryofAccounts,
+        YearlySummaryofAccounts,
+        WheretheMoneyGoes,
+        WheretheMoneyComesFrom,
+        CategoriesSummary,
+        CategoriesMonthly,
+        Payees,
+        IncomevsExpensesSummary,
+        IncomevsExpensesMonthly,
+        BudgetPerformance,
+        BudgetCategorySummary,
+        MonthlyCashFlow,
+        DailyCashFlow,
+        StocksReportPerformance,
+        StocksReportSummary,
+        ForecastReport,
+    };
+    ReportInfo(wxString g, wxString n, bool t, Reports r) { group = g; name = n; type = t; id = r; }
+    wxString group;
+    wxString name;
+    bool type;
+    Reports id;
+    bool operator < (const ReportInfo& rep) const
+    {
+        if (group.IsEmpty())
+        {
+            if (rep.group.IsEmpty())
+                return name.Cmp(rep.name) < 0;
+            else
+                return name.Cmp(rep.group) < 0;
+        }
+        else
+        {
+            if (rep.group.IsEmpty())
+                return group.Cmp(rep.name) < 0;
+            else
+            {
+                int r = group.Cmp(rep.group);
+                if (r == 0)
+                    r = name.Cmp(rep.name);
+                return r < 0;
+            }
+        }
+    };
+};
 
 //----------------------------------------------------------------------------
 Option::Option()
 :   m_dateFormat(mmex::DEFDATEFORMAT)
-    , m_language("english")
+    , m_language(wxLANGUAGE_UNKNOWN)
     , m_databaseUpdated(false)
     , m_budgetFinancialYears(false)
     , m_budgetIncludeTransfers(false)
@@ -41,12 +104,33 @@ Option::Option()
     , m_transPayeeSelection(Option::NONE)
     , m_transCategorySelection(Option::NONE)
     , m_transStatusReconciled(Option::NONE)
-    , m_usageStatistics(true)
     , m_transDateDefault(0)
+    , m_usageStatistics(true)
     , m_sharePrecision(4)
     , m_html_font_size(100)
     , m_ico_size(16)
-{}
+    , m_hideReport(0)
+{
+    m_reports.push_back(ReportInfo("", wxTRANSLATE("MMEX Usage Frequency"), false, ReportInfo::MyUsage));
+    m_reports.push_back(ReportInfo(wxTRANSLATE("Summary of Accounts"), wxTRANSLATE("Monthly"), false, ReportInfo::MonthlySummaryofAccounts));
+    m_reports.push_back(ReportInfo(wxTRANSLATE("Summary of Accounts"), wxTRANSLATE("Yearly"), false, ReportInfo::YearlySummaryofAccounts));
+    m_reports.push_back(ReportInfo(wxTRANSLATE("Categories"), wxTRANSLATE("Where the Money Goes"), false, ReportInfo::WheretheMoneyGoes));
+    m_reports.push_back(ReportInfo(wxTRANSLATE("Categories"), wxTRANSLATE("Where the Money Comes From"), false, ReportInfo::WheretheMoneyComesFrom));
+    m_reports.push_back(ReportInfo(wxTRANSLATE("Categories"), wxTRANSLATE("Summary"), false, ReportInfo::CategoriesSummary));
+    m_reports.push_back(ReportInfo(wxTRANSLATE("Categories"), wxTRANSLATE("Monthly"), false, ReportInfo::CategoriesMonthly));
+    m_reports.push_back(ReportInfo("", wxTRANSLATE("Payees"), false, ReportInfo::Payees));
+    m_reports.push_back(ReportInfo(wxTRANSLATE("Income vs Expenses"), wxTRANSLATE("Summary"), false, ReportInfo::IncomevsExpensesSummary));
+    m_reports.push_back(ReportInfo(wxTRANSLATE("Income vs Expenses"), wxTRANSLATE("Monthly"), false, ReportInfo::IncomevsExpensesMonthly));
+    m_reports.push_back(ReportInfo(wxTRANSLATE("Budget"), wxTRANSLATE("Performance"), true, ReportInfo::BudgetPerformance));
+    m_reports.push_back(ReportInfo(wxTRANSLATE("Budget"), wxTRANSLATE("Category Summary"), true, ReportInfo::BudgetCategorySummary));
+    m_reports.push_back(ReportInfo(wxTRANSLATE("Cash Flow"), wxTRANSLATE("Monthly"), false, ReportInfo::MonthlyCashFlow));
+    m_reports.push_back(ReportInfo(wxTRANSLATE("Cash Flow"), wxTRANSLATE("Daily"), false, ReportInfo::DailyCashFlow));
+    m_reports.push_back(ReportInfo(wxTRANSLATE("Stocks Report"), wxTRANSLATE("Performance"), false, ReportInfo::StocksReportPerformance));
+    m_reports.push_back(ReportInfo(wxTRANSLATE("Stocks Report"), wxTRANSLATE("Summary"), false, ReportInfo::StocksReportSummary));
+    m_reports.push_back(ReportInfo("", wxTRANSLATE("Forecast Report"), false, ReportInfo::ForecastReport));
+    //Sort by group name and report name
+    std::sort(m_reports.begin(), m_reports.end());
+}
 
 //----------------------------------------------------------------------------
 Option& Option::instance()
@@ -63,6 +147,7 @@ void Option::LoadOptions(bool include_infotable)
         m_userNameString = Model_Infotable::instance().GetStringInfo("USERNAME", "");
         m_financialYearStartDayString = Model_Infotable::instance().GetStringInfo("FINANCIAL_YEAR_START_DAY", "1");
         m_financialYearStartMonthString = Model_Infotable::instance().GetStringInfo("FINANCIAL_YEAR_START_MONTH", "7");
+        m_budget_days_offset = Model_Infotable::instance().GetIntInfo("BUDGET_DAYS_OFFSET", 0);
         m_sharePrecision = Model_Infotable::instance().GetIntInfo("SHARE_PRECISION", 4);
         m_baseCurrency = Model_Infotable::instance().GetIntInfo("BASECURRENCYID", -1);
         // Ensure that base currency is set for the database.
@@ -71,13 +156,11 @@ void Option::LoadOptions(bool include_infotable)
             if (mmMainCurrencyDialog::Execute(m_baseCurrency))
             {
                 BaseCurrency(m_baseCurrency);
-                Model_CurrencyHistory::ResetCurrencyHistory();
-                Model_Currency::ResetBaseConversionRates();
             }
         }
     }
 
-    m_language = Model_Setting::instance().GetStringSetting(LANGUAGE_PARAMETER, "english");
+    m_language = static_cast<wxLanguage>(Model_Setting::instance().GetIntSetting(LANGUAGE_PARAMETER, wxLANGUAGE_UNKNOWN));
 
     m_budgetFinancialYears = Model_Setting::instance().GetBoolSetting(INIDB_BUDGET_FINANCIAL_YEARS, false);
     m_budgetIncludeTransfers = Model_Setting::instance().GetBoolSetting(INIDB_BUDGET_INCLUDE_TRANSFERS, false);
@@ -95,7 +178,13 @@ void Option::LoadOptions(bool include_infotable)
     m_transDateDefault = Model_Setting::instance().GetIntSetting("TRANSACTION_DATE_DEFAULT", 0);
     m_usageStatistics = Model_Setting::instance().GetBoolSetting(INIDB_SEND_USAGE_STATS, true);
 
-    m_html_font_size = Model_Setting::instance().GetIntSetting("HTMLSCALE", 100);
+    // Windows problem on high res screens Ref Issue #478
+    int default_font_size = 100;
+#ifdef _WINDOWS
+    default_font_size = 116;
+#endif
+
+    m_html_font_size = Model_Setting::instance().GetIntSetting("HTMLSCALE", default_font_size);
     m_ico_size = 16;
     if (m_html_font_size >= 300)
     {
@@ -109,6 +198,8 @@ void Option::LoadOptions(bool include_infotable)
     {
         m_ico_size = 24;
     }
+
+    m_hideReport = Model_Setting::instance().GetIntSetting("HIDE_REPORT", 0);
 }
 
 void Option::DateFormat(const wxString& dateformat)
@@ -122,20 +213,30 @@ wxString Option::DateFormat()
     return m_dateFormat;
 }
 
-void Option::Language(wxString& language)
+void Option::Language(wxLanguage& language)
 {
     m_language = language;
     Model_Setting::instance().Set(LANGUAGE_PARAMETER, language);
 }
 
-wxString Option::Language(bool get_db)
+wxLanguage Option::Language(bool get_db)
 {
     if (get_db)
     {
-        m_language = Model_Setting::instance().GetStringSetting(LANGUAGE_PARAMETER, "english");
+        m_language = static_cast<wxLanguage>(Model_Setting::instance().GetIntSetting(LANGUAGE_PARAMETER, wxLANGUAGE_UNKNOWN));
     }
 
     return m_language;
+}
+
+wxString Option::LanguageISO6391(bool get_db)
+{
+    Option::Language(get_db);
+    if (m_language==wxLANGUAGE_UNKNOWN)
+        return wxEmptyString;
+    if (m_language==wxLANGUAGE_DEFAULT)
+        return wxTranslations::Get()->GetBestTranslation("mmex", wxLANGUAGE_ENGLISH_US).Left(2);
+    return wxLocale::GetLanguageCanonicalName(m_language).Left(2);
 }
 
 void Option::UserName(const wxString& username)
@@ -248,7 +349,6 @@ bool Option::IgnoreFutureTransactions()
     return m_ignoreFutureTransactions;
 }
 
-
 void Option::TransPayeeSelection(int value)
 {
     Model_Setting::instance().Set("TRANSACTION_PAYEE_NONE", value);
@@ -259,7 +359,6 @@ int Option::TransPayeeSelection()
 {
     return m_transPayeeSelection;
 }
-
 
 void Option::TransCategorySelection(int value)
 {
@@ -327,6 +426,23 @@ int Option::HtmlFontSize()
     return m_html_font_size;
 }
 
+void Option::BudgetDaysOffset(int value)
+{
+    Model_Infotable::instance().Set("BUDGET_DAYS_OFFSET", value);
+    m_budget_days_offset = value;
+}
+
+int Option::BudgetDaysOffset()
+{
+    return m_budget_days_offset;
+}
+
+void Option::BudgetDateOffset(wxDateTime& date)
+{
+    if (m_budget_days_offset != 0)
+        date.Add(wxDateSpan::Days(m_budget_days_offset));
+}
+
 void Option::IconSize(int value)
 {
     m_ico_size = value;
@@ -337,7 +453,7 @@ int Option::IconSize()
     return m_ico_size;
 }
 
-const int Option::AccountImageId(int account_id, bool def)
+int Option::AccountImageId(int account_id, bool def)
 {
     int max = acc_img::MAX_XPM - img::LAST_NAVTREE_PNG;
     int min = 1;
@@ -402,8 +518,172 @@ const int Option::AccountImageId(int account_id, bool def)
         else if (favorite) selectedImage = img::LOAN_ACC_FAVORITE_PNG;
         else selectedImage = img::LOAN_ACC_NORMAL_PNG;
         break;
+    case (Model_Account::CRYPTO):
+        if (closed) selectedImage = img::CRYPTO_ACC_CLOSED_PNG;
+        else if (favorite) selectedImage = img::CRYPTO_ACC_FAVORITE_PNG;
+        else selectedImage = img::CRYPTO_ACC_NORMAL_PNG;
+        break;
     default:
         wxASSERT(false);
     }
     return selectedImage;
+}
+
+void Option::HideReport(int report, bool value)
+{
+    if ((report >= 0) && (report < ReportCount()))
+    {
+        int bitField = 1 << m_reports[report].id;
+        if (value)
+            m_hideReport |= bitField;
+        else
+            m_hideReport &= ~bitField;
+
+        Model_Setting::instance().Set("HIDE_REPORT", m_hideReport);
+    }
+}
+
+bool Option::HideReport(int report)
+{
+    bool hideReport = false;
+    if ((report >= 0) && (report < ReportCount()))
+    {
+        int bitField = 1 << m_reports[report].id;
+        hideReport = ((m_hideReport & bitField) != 0);
+    }
+    return hideReport;
+}
+
+int Option::ReportCount()
+{
+    return static_cast<int>(m_reports.size());
+}
+
+wxString Option::ReportFullName(int report)
+{
+    wxString name = "";
+    if ((report >= 0) && (report < ReportCount()))
+    {
+        ReportInfo* r = &m_reports[report];
+        name = wxGetTranslation(r->group);
+        if (name.IsEmpty())
+            name = wxGetTranslation(r->name);
+        else
+            name += wxString(" (") + wxGetTranslation(r->name) + wxString(")");
+    }
+    return name;
+}
+
+wxString Option::ReportGroup(int report)
+{
+    wxString group = "";
+    if ((report >= 0) && (report < ReportCount()))
+    {
+        group = m_reports[report].group;
+    }
+    return group;
+}
+
+wxString Option::ReportName(int report)
+{
+    wxString name = "";
+    if ((report >= 0) && (report < ReportCount()))
+    {
+        name = m_reports[report].name;
+    }
+    return name;
+}
+
+bool Option::BudgetReport(int report)
+{
+    bool budget = false;
+    if ((report >= 0) && (report < ReportCount()))
+    {
+        budget = m_reports[report].type;
+    }
+    return budget;
+}
+
+mmPrintableBase* Option::ReportFunction(int report)
+{
+    mmPrintableBase* function = nullptr;
+    if ((report >= 0) && (report < ReportCount()))
+    {
+        switch (m_reports[report].id)
+        {
+        case ReportInfo::MyUsage:
+            function = new mmReportMyUsage();
+            break;
+        case ReportInfo::MonthlySummaryofAccounts:
+            function = new mmReportSummaryByDate(0);
+            break;
+        case ReportInfo::YearlySummaryofAccounts:
+            function = new mmReportSummaryByDate(1);
+            break;
+        case ReportInfo::WheretheMoneyGoes:
+            function = new mmReportCategoryExpensesGoes();
+            break;
+        case ReportInfo::WheretheMoneyComesFrom:
+            function = new mmReportCategoryExpensesComes();
+            break;
+        case ReportInfo::CategoriesSummary:
+            function = new mmReportCategoryExpensesCategories();
+            break;
+        case ReportInfo::CategoriesMonthly:
+            function = new mmReportCategoryOverTimePerformance();
+            break;
+        case ReportInfo::Payees:
+            function = new mmReportPayeeExpenses();
+            break;
+        case ReportInfo::IncomevsExpensesSummary:
+            function = new mmReportIncomeExpenses();
+            break;
+        case ReportInfo::IncomevsExpensesMonthly:
+            function = new mmReportIncomeExpensesMonthly();
+            break;
+        case ReportInfo::BudgetPerformance:
+            function = new mmReportBudgetingPerformance();
+            break;
+        case ReportInfo::BudgetCategorySummary:
+            function = new mmReportBudgetCategorySummary();
+            break;
+        case ReportInfo::MonthlyCashFlow:
+            function = new mmReportCashFlow(mmReportCashFlow::MONTHLY);
+            break;
+        case ReportInfo::DailyCashFlow:
+            function = new mmReportCashFlow(mmReportCashFlow::DAILY);
+            break;
+        case ReportInfo::StocksReportPerformance:
+            function = new mmReportChartStocks();
+            break;
+        case ReportInfo::StocksReportSummary:
+            function = new mmReportSummaryStocks();
+            break;
+        case ReportInfo::ForecastReport:
+            function = new mmReportForecast();
+            break;
+        default:
+            break;
+        }
+        if (function != nullptr)
+            function->setSettings(ReportSettings(m_reports[report].id));
+    }
+    return function;
+}
+
+const wxString Option::ReportSettings(int id)
+{
+    const wxString& name = wxString::Format("REPORT_%d", id);
+    const wxString& settings = Model_Infotable::instance().GetStringInfo(name, "");
+    Document j_doc_main;
+    if (j_doc_main.Parse(settings.c_str()).HasParseError()) {
+        j_doc_main.Parse(wxString::Format("{\"ID\":%i}", id).c_str());
+    }
+
+    if (!j_doc_main.HasMember("ID")) {
+        Value v_id(id);
+        j_doc_main.AddMember("ID", v_id, j_doc_main.GetAllocator());
+    }
+    const auto& json_data = JSON_PrettyFormated(j_doc_main);
+    return json_data;
 }

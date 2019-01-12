@@ -20,12 +20,10 @@
 #define _MM_EX_REPORTSUMMARY_H_
 
 #include "reportbase.h"
-#include <vector>
-#include "mmex.h"
-#include "model/Model.h"
-#include "model/Model_Account.h"
 
 #if 0
+#include <vector>
+
 // structure for sorting of data
 struct summary_data_holder { wxString name; wxString link; double balance; };
 
@@ -50,12 +48,11 @@ private:
 class mmReportSummaryByDate : public mmPrintableBase
 {
 public:
-    mmReportSummaryByDate(mmGUIFrame* frame, int mode);
+    mmReportSummaryByDate(int mode);
     wxString getHTMLText();
 
 private:
     int mode_;
-    mmGUIFrame* frame_;
 
     typedef std::map<wxDate, double> balanceMap;
 };

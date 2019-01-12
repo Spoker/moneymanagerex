@@ -34,7 +34,7 @@ public:
         , const wxPoint &pos = wxDefaultPosition
         , const wxSize &size = wxDefaultSize
         , long style = wxTAB_TRAVERSAL
-        , const wxString &name = wxPanelNameStr);
+        , const wxString &name = "OptionSettingsNet");
 
     ~OptionSettingsNet();
 
@@ -45,14 +45,18 @@ private:
     void Create();
 
     void OnProxyChanged(wxCommandEvent& event);
-    void OnUpdateCheckChanged(wxCommandEvent& event);
+#ifdef MMEX_WEBSERVER
     void OnEnableWebserverChanged(wxCommandEvent& event);
+#endif
+    void OnWebAppTest(wxCommandEvent& event);
 
 private:
     wxSpinCtrl* m_network_timeout;
     wxCheckBox* m_send_data;
+#ifdef MMEX_WEBSERVER
     wxCheckBox* m_webserver_checkbox;
     wxSpinCtrl* m_webserver_port;
+#endif
     wxTextCtrl* m_proxy_address;
     wxSpinCtrl* m_proxy_port;
     wxCheckBox* m_check_update;
@@ -63,7 +67,10 @@ private:
         ID_DIALOG_OPTIONS_TEXTCTRL_PROXY = wxID_HIGHEST + 10,
         ID_DIALOG_OPTIONS_TEXTCTRL_WEBAPPURL,
         ID_DIALOG_OPTIONS_TEXTCTRL_WEBAPPGUID,
+#ifdef MMEX_WEBSERVER
         ID_DIALOG_OPTIONS_ENABLE_WEBSERVER,
-        ID_DIALOG_OPTIONS_UPDATES_CHECK
+#endif
+        ID_DIALOG_OPTIONS_UPDATES_CHECK,
+        ID_DIALOG_OPTIONS_BUTTON_WEBAPP_TEST
     };
 };

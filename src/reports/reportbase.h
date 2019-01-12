@@ -1,5 +1,7 @@
 /*******************************************************
  Copyright (C) 2006 Madhan Kanagavel
+ Copyright (C) 2017 James Higley
+ Copyright (C) 2017 Nikolay Akimov
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -20,33 +22,57 @@
 #ifndef MM_EX_REPORTBASE_H_
 #define MM_EX_REPORTBASE_H_
 //----------------------------------------------------------------------------
-#include "mmDateRange.h"
-#include "option.h"
-#include "model/Model_Report.h"
+#include "Model_Report.h"
+#include <html_template.h>
 class wxString;
 class wxArrayString;
+class mmDateRange;
 //----------------------------------------------------------------------------
 
 class mmPrintableBase
 {
 public:
-    mmPrintableBase(const wxString& title): m_title(title), m_date_range(nullptr), m_initial(true), m_date_selection(0) {}
-    virtual ~mmPrintableBase() {}
+    mmPrintableBase(const wxString& title);
+    virtual ~mmPrintableBase();
     virtual wxString getHTMLText() = 0;
     virtual void RefreshData() {}
     virtual wxString title() const;
-    virtual bool has_date_range() { return false;}
-    void date_range(const mmDateRange* date_range, int selection) { this->m_date_range = date_range; this->m_date_selection = selection; }
+    virtual wxString file_name() const;
+    virtual int report_parameters() { return RepParams::NONE;  }
+    virtual void date_range(const mmDateRange* date_range, int selection);
+    void accounts(int selection, wxString& name);
+    void chart(int selection);
     int getDateSelection() { return this->m_date_selection; }
+    int getAccountSelection() { return this->m_account_selection; }
+    int getChartSelection() { return this->m_chart_selection; }
     void initial_report(bool initial) { m_initial = initial; }
+    void setSettings(const wxString& settings);
+    void getDates(wxDateTime &begin, wxDateTime &end);
 protected:
     wxString m_title;
     const mmDateRange* m_date_range;
     bool m_initial;
     int m_date_selection;
+    int m_account_selection;
+    int m_chart_selection;
+    const wxArrayString* accountArray_;
+    bool m_only_active;
+    wxString m_settings;
+    wxDateTime m_begin_date;
+    wxDateTime m_end_date;
 
 public:
     static const char * m_template;
+    enum RepParams 
+    {
+        NONE = 0
+        , SINGLE_DATE = 1
+        , DATE_RANGE = 2
+        , BUDGET_DATES = 4
+        , ONLY_YEARS = 8
+        , ACCOUNTS_LIST = 16
+        , CHART = 32
+    };
 };
 
 class mmGeneralReport : public mmPrintableBase
@@ -56,24 +82,12 @@ public:
 
 public:
     wxString getHTMLText();
+    virtual int report_parameters();
 
 private:
     const Model_Report::Data* m_report;
 };
 
-class mmPrintableBaseSpecificAccounts : public mmPrintableBase
-{
-public:
-    explicit mmPrintableBaseSpecificAccounts(const wxString& report_name, int sort_column = 0);
-    virtual ~mmPrintableBaseSpecificAccounts();
-
-protected:
-    const wxArrayString* accountArray_;
-
-    void getSpecificAccounts();
-};
-
-#include "html_template.h"
 class mm_html_template: public html_template
 {
 public:
@@ -82,8 +96,6 @@ public:
 private:
     void load_context();
 };
-
-
 
 //----------------------------------------------------------------------------
 #endif // MM_EX_REPORTBASE_H_
